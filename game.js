@@ -52,8 +52,8 @@ class GoKartsGame {
             { p1: { x: 0.76, y: 0.28 }, p2: { x: 0.84, y: 0.14 } }   // CP10
         ];
         
-        // Start/finish line (across the track near start position)
-        this.startFinishLine = { p1: { x: 0.78, y: 0.48 }, p2: { x: 0.82, y: 0.52 } };
+        // Start/finish line (proper line across track for lap detection)
+        this.startFinishLine = { p1: { x: 0.763, y: 0.463 }, p2: { x: 0.862, y: 0.572 } };
         
         
         // Leaderboard data (stored locally for now)
@@ -66,9 +66,6 @@ class GoKartsGame {
         this.initializeEventListeners();
         this.showScreen('mainMenu');
         
-        // Debug mode for start/finish line
-        this.debugMode = true;
-        this.debugClicks = [];
         
     }
     
@@ -123,40 +120,6 @@ class GoKartsGame {
         document.addEventListener('keyup', (e) => {
             this.keys[e.key.toLowerCase()] = false;
             this.keys[e.code] = false;
-        });
-        
-        // Debug: Click to get coordinates for start/finish line
-        document.addEventListener('click', (e) => {
-            if (this.debugMode && this.currentScreen === 'gameScreen') {
-                const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                // Convert to canvas coordinates
-                const canvasX = (x / rect.width) * this.canvas.width;
-                const canvasY = (y / rect.height) * this.canvas.height;
-                
-                // Convert to percentage
-                const percentX = canvasX / this.canvas.width;
-                const percentY = canvasY / this.canvas.height;
-                
-                const clickData = { x: canvasX, y: canvasY, percentX, percentY };
-                this.debugClicks.push(clickData);
-                
-                console.log(`Click ${this.debugClicks.length}: (${percentX.toFixed(3)}, ${percentY.toFixed(3)})`);
-                
-                // Keep only last 2 clicks for start/finish line
-                if (this.debugClicks.length > 2) {
-                    this.debugClicks.shift();
-                }
-                
-                // If we have 2 points, suggest start/finish line coordinates
-                if (this.debugClicks.length === 2) {
-                    const p1 = this.debugClicks[0];
-                    const p2 = this.debugClicks[1];
-                    console.log(`Start/Finish Line: p1: (${p1.percentX.toFixed(3)}, ${p1.percentY.toFixed(3)}) p2: (${p2.percentX.toFixed(3)}, ${p2.percentY.toFixed(3)})`);
-                }
-            }
         });
     }
     
@@ -616,11 +579,6 @@ class GoKartsGame {
         this.players.forEach(player => {
             this.drawPlayer(player);
         });
-        
-        // Debug: Draw coordinate helpers for start/finish line
-        if (this.debugMode) {
-            this.drawStartFinishDebug();
-        }
     }
     
     drawTrack() {
@@ -714,64 +672,6 @@ class GoKartsGame {
         this.ctx.lineTo(sf.p2.x, sf.p2.y);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
-    }
-    
-    drawStartFinishDebug() {
-        const canvasWidth = this.canvas.width || 1200;
-        const canvasHeight = this.canvas.height || 800;
-        
-        // Draw start position
-        const startX = canvasWidth * 0.80;
-        const startY = canvasHeight * 0.50;
-        this.ctx.fillStyle = 'red';
-        this.ctx.beginPath();
-        this.ctx.arc(startX, startY, 12, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.fillStyle = 'white';
-        this.ctx.font = '14px Arial';
-        this.ctx.fillText('START POS', startX + 15, startY);
-        
-        // Draw current start/finish line
-        const sf = {
-            p1: { x: this.startFinishLine.p1.x * canvasWidth,
-                  y: this.startFinishLine.p1.y * canvasHeight },
-            p2: { x: this.startFinishLine.p2.x * canvasWidth,
-                  y: this.startFinishLine.p2.y * canvasHeight }
-        };
-        
-        this.ctx.strokeStyle = 'magenta';
-        this.ctx.lineWidth = 5;
-        this.ctx.beginPath();
-        this.ctx.moveTo(sf.p1.x, sf.p1.y);
-        this.ctx.lineTo(sf.p2.x, sf.p2.y);
-        this.ctx.stroke();
-        this.ctx.fillStyle = 'white';
-        this.ctx.fillText('CURRENT S/F', sf.p1.x, sf.p1.y - 10);
-        
-        // Draw click markers
-        this.debugClicks.forEach((click, index) => {
-            this.ctx.fillStyle = index === 0 ? 'lime' : 'orange';
-            this.ctx.beginPath();
-            this.ctx.arc(click.x, click.y, 10, 0, Math.PI * 2);
-            this.ctx.fill();
-            
-            this.ctx.fillStyle = 'white';
-            this.ctx.fillText(`P${index + 1}`, click.x + 12, click.y);
-            this.ctx.fillText(`(${click.percentX.toFixed(3)}, ${click.percentY.toFixed(3)})`, 
-                             click.x + 12, click.y + 15);
-        });
-        
-        // Instructions
-        this.ctx.fillStyle = 'yellow';
-        this.ctx.font = '18px Arial';
-        this.ctx.fillText('DEBUG: Click 2 points to create start/finish line', 10, canvasHeight - 60);
-        this.ctx.fillText('Current S/F line shown in MAGENTA', 10, canvasHeight - 40);
-        this.ctx.fillText('Check console for coordinates', 10, canvasHeight - 20);
-        
-        if (this.debugClicks.length === 2) {
-            this.ctx.fillStyle = 'lime';
-            this.ctx.fillText('✓ Ready! Check console for coordinates', 10, canvasHeight - 80);
-        }
     }
     
     showLeaderboard() {

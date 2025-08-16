@@ -29,18 +29,21 @@ class GoKartsGame {
         this.raceStartTime = 0;
         this.raceFinished = false;
         
-        // Checkpoint system - properly placed on the visible track
-        this.checkpoints = [
-            { x1: 1070, y1: 550, x2: 1070, y2: 610, width: 60 },  // CP1: right after start
-            { x1: 970, y1: 530, x2: 1020, y2: 530, width: 60 },   // CP2: horizontal on right
-            { x1: 400, y1: 620, x2: 400, y2: 680, width: 60 },    // CP3: vertical bottom left
-            { x1: 380, y1: 340, x2: 440, y2: 340, width: 60 },    // CP4: horizontal top left  
-            { x1: 540, y1: 260, x2: 540, y2: 320, width: 60 },    // CP5: vertical at top
-            { x1: 650, y1: 390, x2: 710, y2: 390, width: 60 },    // CP6: horizontal in middle
-            { x1: 800, y1: 490, x2: 800, y2: 550, width: 60 },    // CP7: vertical on right side
-            { x1: 920, y1: 320, x2: 920, y2: 380, width: 60 },    // CP8: vertical upper right
-            { x1: 1100, y1: 440, x2: 1160, y2: 440, width: 60 }   // CP9: horizontal before finish
+        // Checkpoint system - using percentages for responsive scaling
+        this.checkpointPercents = [
+            { x1: 0.89, y1: 0.69, x2: 0.89, y2: 0.76 },  // CP1: right after start
+            { x1: 0.81, y1: 0.66, x2: 0.85, y2: 0.66 },  // CP2: horizontal on right
+            { x1: 0.33, y1: 0.78, x2: 0.33, y2: 0.85 },  // CP3: vertical bottom left
+            { x1: 0.32, y1: 0.43, x2: 0.37, y2: 0.43 },  // CP4: horizontal top left  
+            { x1: 0.45, y1: 0.33, x2: 0.45, y2: 0.40 },  // CP5: vertical at top
+            { x1: 0.54, y1: 0.49, x2: 0.59, y2: 0.49 },  // CP6: horizontal in middle
+            { x1: 0.67, y1: 0.61, x2: 0.67, y2: 0.69 },  // CP7: vertical on right side
+            { x1: 0.77, y1: 0.40, x2: 0.77, y2: 0.48 },  // CP8: vertical upper right
+            { x1: 0.92, y1: 0.55, x2: 0.97, y2: 0.55 }   // CP9: horizontal before finish
         ];
+        
+        // Convert percentages to actual coordinates based on canvas size
+        this.updateCheckpointPositions();
         
         // Leaderboard data (stored locally for now)
         this.leaderboard = this.loadLeaderboard();
@@ -48,8 +51,24 @@ class GoKartsGame {
         // Controls
         this.keys = {};
         
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            this.updateCheckpointPositions();
+        });
+        
         this.initializeEventListeners();
         this.showScreen('mainMenu');
+    }
+    
+    updateCheckpointPositions() {
+        // Convert percentage positions to actual canvas coordinates
+        this.checkpoints = this.checkpointPercents.map(cp => ({
+            x1: cp.x1 * this.canvas.width,
+            y1: cp.y1 * this.canvas.height,
+            x2: cp.x2 * this.canvas.width,
+            y2: cp.y2 * this.canvas.height,
+            width: 60
+        }));
     }
     
     loadPlayerAssets() {
@@ -147,13 +166,13 @@ class GoKartsGame {
         // Create 5 players (including local player)
         this.players = [];
         
-        // Starting positions at the checkered finish line (bottom right of track)
+        // Starting positions at the checkered finish line (using percentages)
         const startPositions = [
-            { x: 1080, y: 630 },  // Front row center
-            { x: 1060, y: 610 },  // Front row left
-            { x: 1100, y: 610 },  // Front row right
-            { x: 1040, y: 590 },  // Back row left
-            { x: 1120, y: 590 }   // Back row right
+            { x: this.canvas.width * 0.90, y: this.canvas.height * 0.79 },  // Front row center
+            { x: this.canvas.width * 0.88, y: this.canvas.height * 0.76 },  // Front row left
+            { x: this.canvas.width * 0.92, y: this.canvas.height * 0.76 },  // Front row right
+            { x: this.canvas.width * 0.87, y: this.canvas.height * 0.74 },  // Back row left
+            { x: this.canvas.width * 0.93, y: this.canvas.height * 0.74 }   // Back row right
         ];
         
         // Local player (always player 1)
@@ -388,10 +407,10 @@ class GoKartsGame {
     checkRaceCompletion() {
         // Check if players cross start/finish line with all checkpoints completed
         this.players.forEach(player => {
-            // Start/finish line at checkered flag area (matches visual checkered flag)
+            // Start/finish line at checkered flag area (using percentages)
             const crossed = this.lineIntersectsCircle(
-                1020, 630,  // Start/finish line coordinates
-                1120, 630,
+                this.canvas.width * 0.85, this.canvas.height * 0.79,  // Start/finish line coordinates
+                this.canvas.width * 0.93, this.canvas.height * 0.79,
                 player.x, player.y, 30
             );
             
@@ -537,9 +556,9 @@ class GoKartsGame {
         this.ctx.fillStyle = 'black';
         this.ctx.lineWidth = 2;
         
-        // Draw checkered pattern at bottom right of track
-        const startX = 1020;
-        const startY = 610;
+        // Draw checkered pattern at bottom right of track (using percentages)
+        const startX = this.canvas.width * 0.85;
+        const startY = this.canvas.height * 0.76;
         const squareSize = 10;
         const rows = 4;
         const cols = 10;

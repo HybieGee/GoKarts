@@ -163,12 +163,25 @@ export class RoomDO {
     // Mark the race as ended and broadcast to all players
     this.gameState = 'finished';
     
-    // Get all players for final positions
-    const allPlayers = Array.from(this.members.values()).map(m => ({
+    // Get all players for final positions with proper ranking
+    const allPlayers = Array.from(this.members.values()).map((m, index) => ({
       id: m.playerId,
       name: `Player_${m.playerId.substring(0, 6)}`,
-      isBot: false
+      isBot: false,
+      position: index + 1
     }));
+
+    // Put winner first
+    const winnerIndex = allPlayers.findIndex(p => p.id === message.playerId);
+    if (winnerIndex > 0) {
+      const winner = allPlayers.splice(winnerIndex, 1)[0];
+      winner.position = 1;
+      allPlayers.unshift(winner);
+      // Update positions for remaining players
+      allPlayers.forEach((player, index) => {
+        if (index > 0) player.position = index + 1;
+      });
+    }
 
     // Broadcast race end to all players
     this.broadcast({

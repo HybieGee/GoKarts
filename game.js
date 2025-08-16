@@ -1262,7 +1262,7 @@ class GoKartsGame {
     
     updateRaceUI() {
         if (this.localPlayer) {
-            document.getElementById('lapCounter').textContent = `Lap: ${Math.min(this.localPlayer.lapCount, this.maxLaps)}/${this.maxLaps}`;
+            document.getElementById('lapCounter').textContent = `Lap: ${Math.min(this.localPlayer.lapCount - 1, this.maxLaps)}/${this.maxLaps}`;
             document.getElementById('position').textContent = `Position: ${this.localPlayer.position}/5`;
             
             const elapsed = Math.floor((Date.now() - this.raceStartTime) / 1000);

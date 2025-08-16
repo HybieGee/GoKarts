@@ -936,17 +936,18 @@ class GoKartsGame {
         const startPosition = { x: canvasWidth * 0.80, y: canvasHeight * 0.50 };
         
         // Calculate starting angle to face forward on the track
-        // First checkpoint (CP1) is at: { p1: { x: 0.62, y: 0.76 }, p2: { x: 0.69, y: 0.91 } }
-        // Center of CP1 is approximately (0.655, 0.835)
-        // From start (0.80, 0.50) we should face toward CP1 center
+        // Game angle system: 0=north, π/2=east, π=south, 3π/2=west
+        // From start (0.80, 0.50) to first checkpoint center (0.655, 0.835)
+        // We need to go LEFT and DOWN
         const cp1CenterX = canvasWidth * 0.655;
         const cp1CenterY = canvasHeight * 0.835;
-        const dx = cp1CenterX - startPosition.x;
-        const dy = cp1CenterY - startPosition.y;
-        // Adjust angle because sprite default orientation is pointing up (north)
-        // Math.atan2 gives angle where 0 = east, but sprite 0 = north
-        // So we need to subtract π/2 to convert from "math coordinates" to "sprite coordinates"
-        const startAngle = Math.atan2(dy, dx) - Math.PI/2;
+        const dx = cp1CenterX - startPosition.x;  // negative (going left)
+        const dy = cp1CenterY - startPosition.y;  // positive (going down)
+        
+        // Convert from standard Math.atan2 (0=east) to game coords (0=north)
+        // Math.atan2 angle = game angle - π/2
+        // So: game angle = Math.atan2 angle + π/2
+        const startAngle = Math.atan2(dx, dy); // Note: swapped dx,dy for game coordinate system
         
         // Local player (always player 1)
         this.localPlayer = {

@@ -46,6 +46,10 @@ class GoKartsGame {
         
         this.initializeEventListeners();
         this.showScreen('mainMenu');
+        
+        // Debug mode
+        this.debugMode = true;
+        this.debugClicks = [];
     }
     
     
@@ -99,6 +103,33 @@ class GoKartsGame {
         document.addEventListener('keyup', (e) => {
             this.keys[e.key.toLowerCase()] = false;
             this.keys[e.code] = false;
+        });
+        
+        // Debug: Click to get coordinates
+        document.addEventListener('click', (e) => {
+            if (this.debugMode && this.currentScreen === 'gameScreen') {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Convert to canvas coordinates
+                const canvasX = (x / rect.width) * this.canvas.width;
+                const canvasY = (y / rect.height) * this.canvas.height;
+                
+                // Convert to percentage
+                const percentX = canvasX / this.canvas.width;
+                const percentY = canvasY / this.canvas.height;
+                
+                const clickData = { x: canvasX, y: canvasY, percentX, percentY };
+                this.debugClicks.push(clickData);
+                
+                console.log(`Click at: Canvas(${Math.round(canvasX)}, ${Math.round(canvasY)}) = Percent(${percentX.toFixed(3)}, ${percentY.toFixed(3)})`);
+                
+                // Keep only last 5 clicks
+                if (this.debugClicks.length > 5) {
+                    this.debugClicks.shift();
+                }
+            }
         });
     }
     
@@ -369,6 +400,11 @@ class GoKartsGame {
         this.players.forEach(player => {
             this.drawPlayer(player);
         });
+        
+        // Debug: Draw coordinate grid and click markers
+        if (this.debugMode) {
+            this.drawDebugInfo();
+        }
     }
     
     drawTrack() {
@@ -405,6 +441,69 @@ class GoKartsGame {
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'center';
         this.ctx.fillText(`${player.name}`, player.x, player.y - 40);
+    }
+    
+    drawDebugInfo() {
+        const canvasWidth = this.canvas.width || 1200;
+        const canvasHeight = this.canvas.height || 800;
+        
+        // Draw coordinate grid (every 10%)
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        this.ctx.lineWidth = 1;
+        this.ctx.font = '12px Arial';
+        this.ctx.fillStyle = 'white';
+        
+        for (let i = 0; i <= 10; i++) {
+            const x = (i / 10) * canvasWidth;
+            const y = (i / 10) * canvasHeight;
+            
+            // Vertical lines
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, 0);
+            this.ctx.lineTo(x, canvasHeight);
+            this.ctx.stroke();
+            
+            // Horizontal lines
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, y);
+            this.ctx.lineTo(canvasWidth, y);
+            this.ctx.stroke();
+            
+            // Labels
+            if (i > 0 && i < 10) {
+                this.ctx.fillText(`${i * 10}%`, x + 5, 20);
+                this.ctx.fillText(`${i * 10}%`, 5, y - 5);
+            }
+        }
+        
+        // Draw click markers
+        this.debugClicks.forEach((click, index) => {
+            this.ctx.fillStyle = `hsl(${index * 60}, 100%, 50%)`;
+            this.ctx.beginPath();
+            this.ctx.arc(click.x, click.y, 10, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Draw coordinates
+            this.ctx.fillStyle = 'white';
+            this.ctx.fillText(`(${click.percentX.toFixed(2)}, ${click.percentY.toFixed(2)})`, 
+                             click.x + 15, click.y - 15);
+        });
+        
+        // Draw current start position
+        const startX = canvasWidth * 0.83;
+        const startY = canvasHeight * 0.79;
+        this.ctx.fillStyle = 'red';
+        this.ctx.beginPath();
+        this.ctx.arc(startX, startY, 15, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.fillStyle = 'white';
+        this.ctx.fillText('START', startX + 20, startY);
+        
+        // Instructions
+        this.ctx.fillStyle = 'yellow';
+        this.ctx.font = '16px Arial';
+        this.ctx.fillText('DEBUG MODE: Click anywhere to get coordinates', 10, canvasHeight - 30);
+        this.ctx.fillText('Current start: (0.83, 0.79)', 10, canvasHeight - 10);
     }
     
     showLeaderboard() {

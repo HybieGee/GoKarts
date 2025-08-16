@@ -50,6 +50,20 @@ class GoKartsGame {
         // Debug mode
         this.debugMode = true;
         this.debugClicks = [];
+        
+        // Reference checkpoint coordinates (for future use)
+        this.debugCheckpoints = [
+            { x: 0.66, y: 0.81, name: "CP1" },
+            { x: 0.42, y: 0.86, name: "CP2" },
+            { x: 0.20, y: 0.70, name: "CP3" },
+            { x: 0.12, y: 0.38, name: "CP4" },
+            { x: 0.26, y: 0.17, name: "CP5" },
+            { x: 0.39, y: 0.32, name: "CP6" },
+            { x: 0.37, y: 0.57, name: "CP7" },
+            { x: 0.57, y: 0.52, name: "CP8" },
+            { x: 0.63, y: 0.25, name: "CP9" },
+            { x: 0.80, y: 0.21, name: "CP10" }
+        ];
     }
     
     
@@ -182,7 +196,7 @@ class GoKartsGame {
         // All players start at the same position behind the start line (with fallback canvas dimensions)
         const canvasWidth = this.canvas.width || 1200;
         const canvasHeight = this.canvas.height || 800;
-        const startPosition = { x: canvasWidth * 0.83, y: canvasHeight * 0.79 };
+        const startPosition = { x: canvasWidth * 0.80, y: canvasHeight * 0.50 };
         
         // Local player (always player 1)
         this.localPlayer = {
@@ -490,8 +504,8 @@ class GoKartsGame {
         });
         
         // Draw current start position
-        const startX = canvasWidth * 0.83;
-        const startY = canvasHeight * 0.79;
+        const startX = canvasWidth * 0.80;
+        const startY = canvasHeight * 0.50;
         this.ctx.fillStyle = 'red';
         this.ctx.beginPath();
         this.ctx.arc(startX, startY, 15, 0, Math.PI * 2);
@@ -499,11 +513,27 @@ class GoKartsGame {
         this.ctx.fillStyle = 'white';
         this.ctx.fillText('START', startX + 20, startY);
         
+        // Draw reference checkpoints (small blue circles)
+        this.debugCheckpoints.forEach((cp, index) => {
+            const cpX = canvasWidth * cp.x;
+            const cpY = canvasHeight * cp.y;
+            
+            this.ctx.fillStyle = 'rgba(0, 150, 255, 0.7)';
+            this.ctx.beginPath();
+            this.ctx.arc(cpX, cpY, 8, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '10px Arial';
+            this.ctx.fillText(cp.name, cpX + 12, cpY + 3);
+        });
+        
         // Instructions
         this.ctx.fillStyle = 'yellow';
         this.ctx.font = '16px Arial';
-        this.ctx.fillText('DEBUG MODE: Click anywhere to get coordinates', 10, canvasHeight - 30);
-        this.ctx.fillText('Current start: (0.83, 0.79)', 10, canvasHeight - 10);
+        this.ctx.fillText('DEBUG MODE: Click anywhere to get coordinates', 10, canvasHeight - 50);
+        this.ctx.fillText('Current start: (0.80, 0.50)', 10, canvasHeight - 30);
+        this.ctx.fillText('Blue circles = reference checkpoints', 10, canvasHeight - 10);
     }
     
     showLeaderboard() {

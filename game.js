@@ -51,18 +51,18 @@ class GoKartsGame {
         this.debugMode = true;
         this.debugClicks = [];
         
-        // Reference checkpoint coordinates (for future use)
+        // Checkpoint lines (p1 and p2 coordinates for each line)
         this.debugCheckpoints = [
-            { x: 0.66, y: 0.81, name: "CP1" },
-            { x: 0.42, y: 0.86, name: "CP2" },
-            { x: 0.20, y: 0.70, name: "CP3" },
-            { x: 0.12, y: 0.38, name: "CP4" },
-            { x: 0.26, y: 0.17, name: "CP5" },
-            { x: 0.39, y: 0.32, name: "CP6" },
-            { x: 0.37, y: 0.57, name: "CP7" },
-            { x: 0.57, y: 0.52, name: "CP8" },
-            { x: 0.63, y: 0.25, name: "CP9" },
-            { x: 0.80, y: 0.21, name: "CP10" }
+            { p1: { x: 0.62, y: 0.76 }, p2: { x: 0.69, y: 0.91 }, name: "CP1" },
+            { p1: { x: 0.41, y: 0.93 }, p2: { x: 0.44, y: 0.79 }, name: "CP2" },
+            { p1: { x: 0.73, y: 0.65 }, p2: { x: 0.15, y: 0.76 }, name: "CP3" },
+            { p1: { x: 0.06, y: 0.37 }, p2: { x: 0.17, y: 0.39 }, name: "CP4" },
+            { p1: { x: 0.26, y: 0.11 }, p2: { x: 0.27, y: 0.24 }, name: "CP5" },
+            { p1: { x: 0.33, y: 0.32 }, p2: { x: 0.44, y: 0.34 }, name: "CP6" },
+            { p1: { x: 0.43, y: 0.51 }, p2: { x: 0.34, y: 0.63 }, name: "CP7" },
+            { p1: { x: 0.53, y: 0.48 }, p2: { x: 0.62, y: 0.57 }, name: "CP8" },
+            { p1: { x: 0.59, y: 0.20 }, p2: { x: 0.67, y: 0.32 }, name: "CP9" },
+            { p1: { x: 0.76, y: 0.28 }, p2: { x: 0.84, y: 0.14 }, name: "CP10" }
         ];
     }
     
@@ -198,13 +198,18 @@ class GoKartsGame {
         const canvasHeight = this.canvas.height || 800;
         const startPosition = { x: canvasWidth * 0.80, y: canvasHeight * 0.50 };
         
+        // Calculate starting angle to face (0.72, 0.68)
+        const targetX = canvasWidth * 0.72;
+        const targetY = canvasHeight * 0.68;
+        const startAngle = Math.atan2(targetX - startPosition.x, -(targetY - startPosition.y));
+        
         // Local player (always player 1)
         this.localPlayer = {
             id: 1,
             name: 'You',
             x: startPosition.x,
             y: startPosition.y,
-            angle: 0, // Start facing right (0 radians)
+            angle: startAngle, // Face towards (0.72, 0.68)
             velocity: { x: 0, y: 0 },
             speed: 0,
             maxSpeed: 6,
@@ -224,7 +229,7 @@ class GoKartsGame {
                 name: `Player ${i + 1}`,
                 x: startPosition.x,
                 y: startPosition.y,
-                angle: 0,
+                angle: startAngle,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
                 maxSpeed: 3 + Math.random() * 0.5,
@@ -513,27 +518,54 @@ class GoKartsGame {
         this.ctx.fillStyle = 'white';
         this.ctx.fillText('START', startX + 20, startY);
         
-        // Draw reference checkpoints (small blue circles)
+        // Draw facing direction arrow
+        const targetX = canvasWidth * 0.72;
+        const targetY = canvasHeight * 0.68;
+        this.ctx.strokeStyle = 'orange';
+        this.ctx.lineWidth = 3;
+        this.ctx.beginPath();
+        this.ctx.moveTo(startX, startY);
+        this.ctx.lineTo(targetX, targetY);
+        this.ctx.stroke();
+        
+        // Draw arrow head
+        this.ctx.fillStyle = 'orange';
+        this.ctx.beginPath();
+        this.ctx.arc(targetX, targetY, 8, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.fillStyle = 'white';
+        this.ctx.fillText('FACE', targetX + 10, targetY);
+        
+        // Draw reference checkpoint lines (blue lines)
         this.debugCheckpoints.forEach((cp, index) => {
-            const cpX = canvasWidth * cp.x;
-            const cpY = canvasHeight * cp.y;
+            const p1X = canvasWidth * cp.p1.x;
+            const p1Y = canvasHeight * cp.p1.y;
+            const p2X = canvasWidth * cp.p2.x;
+            const p2Y = canvasHeight * cp.p2.y;
             
-            this.ctx.fillStyle = 'rgba(0, 150, 255, 0.7)';
+            // Draw checkpoint line
+            this.ctx.strokeStyle = 'rgba(0, 150, 255, 0.8)';
+            this.ctx.lineWidth = 3;
             this.ctx.beginPath();
-            this.ctx.arc(cpX, cpY, 8, 0, Math.PI * 2);
-            this.ctx.fill();
+            this.ctx.moveTo(p1X, p1Y);
+            this.ctx.lineTo(p2X, p2Y);
+            this.ctx.stroke();
             
+            // Draw checkpoint name at midpoint
+            const midX = (p1X + p2X) / 2;
+            const midY = (p1Y + p2Y) / 2;
             this.ctx.fillStyle = 'white';
-            this.ctx.font = '10px Arial';
-            this.ctx.fillText(cp.name, cpX + 12, cpY + 3);
+            this.ctx.font = '12px Arial';
+            this.ctx.fillText(cp.name, midX + 5, midY - 5);
         });
         
         // Instructions
         this.ctx.fillStyle = 'yellow';
         this.ctx.font = '16px Arial';
-        this.ctx.fillText('DEBUG MODE: Click anywhere to get coordinates', 10, canvasHeight - 50);
-        this.ctx.fillText('Current start: (0.80, 0.50)', 10, canvasHeight - 30);
-        this.ctx.fillText('Blue circles = reference checkpoints', 10, canvasHeight - 10);
+        this.ctx.fillText('DEBUG MODE: Click anywhere to get coordinates', 10, canvasHeight - 70);
+        this.ctx.fillText('Start: (0.80, 0.50) facing (0.72, 0.68)', 10, canvasHeight - 50);
+        this.ctx.fillText('Blue lines = checkpoint lines', 10, canvasHeight - 30);
+        this.ctx.fillText('Orange arrow = starting direction', 10, canvasHeight - 10);
     }
     
     showLeaderboard() {

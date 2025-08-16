@@ -47,7 +47,10 @@ class CloudflareGameClient {
                 this.currentState = 'matched';
                 this.roomId = result.roomId;
                 this.emit('match-found', result);
-                await this.connectToRoom(result.wsUrl);
+                // Small delay to ensure room is ready
+                setTimeout(async () => {
+                    await this.connectToRoom(result.wsUrl);
+                }, 500);
             } else if (result.status === 'queued') {
                 // Start polling
                 this.currentState = 'queued';
@@ -78,7 +81,10 @@ class CloudflareGameClient {
                     this.currentState = 'matched';
                     this.roomId = result.roomId;
                     this.emit('match-found', result);
-                    await this.connectToRoom(result.wsUrl);
+                    // Small delay to ensure room is ready
+                    setTimeout(async () => {
+                        await this.connectToRoom(result.wsUrl);
+                    }, 500);
                 } else if (result.status === 'queued') {
                     this.emit('queue-update', result);
                 } else if (result.status === 'timeout') {

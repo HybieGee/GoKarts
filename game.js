@@ -122,8 +122,8 @@ class GoKartsGame {
         if (!this.socket) return;
         
         this.socket.on('connect', () => {
-            console.log(`✅ Connected! Player ID: ${this.socket.playerId}`);
-            this.playerId = this.socket.playerId;
+            console.log(`✅ Connected! Player ID: ${this.socket.id}`);
+            this.playerId = this.socket.id;
             this.isMultiplayer = true;
             this.updateConnectionStatus(true);
             

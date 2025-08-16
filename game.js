@@ -108,6 +108,7 @@ class GoKartsGame {
         
         this.socket.on('connect', () => {
             console.log(`✅ Connected to multiplayer server! Player ID: ${this.socket.id}`);
+            alert(`✅ Connected! Player ID: ${this.socket.id}`); // Debug alert
             this.playerId = this.socket.id;
             this.isMultiplayer = true;
             this.updateConnectionStatus(true);
@@ -129,6 +130,7 @@ class GoKartsGame {
         
         this.socket.on('connect_error', (error) => {
             console.error('❌ Connection error:', error);
+            alert(`❌ Connection failed: ${error}`); // Debug alert
             this.isMultiplayer = false;
             this.updateConnectionStatus(false);
         });

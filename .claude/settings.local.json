@@ -10,7 +10,8 @@
       "Bash(git push:*)",
       "Bash(git pull:*)",
       "Bash(rm:*)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(wrangler deploy:*)"
     ],
     "deny": [],
     "ask": []

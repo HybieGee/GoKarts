@@ -10,6 +10,8 @@ class CloudflareGameClient {
     }
 
     connect(workerUrl = 'wss://gokarts-multiplayer.your-subdomain.workers.dev') {
+        console.log(`🔗 Connecting to: ${workerUrl}`);
+        
         try {
             this.ws = new WebSocket(workerUrl);
             
@@ -24,26 +26,34 @@ class CloudflareGameClient {
             this.ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
+                    console.log('📨 Received:', data.type, data);
                     this.emit(data.type, data);
                 } catch (err) {
                     console.error('Failed to parse message:', err);
+                    console.log('Raw message:', event.data);
                 }
             };
             
-            this.ws.onclose = () => {
-                console.log('❌ Disconnected from Cloudflare Workers');
+            this.ws.onclose = (event) => {
+                console.log(`❌ Disconnected from Cloudflare Workers (Code: ${event.code}, Reason: ${event.reason})`);
                 this.isConnected = false;
                 this.emit('disconnect');
-                this.attemptReconnect();
+                
+                // Don't auto-reconnect if it was a normal close
+                if (event.code !== 1000) {
+                    this.attemptReconnect();
+                }
             };
             
             this.ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
+                console.error('🚨 WebSocket error:', error);
+                console.log('Worker URL:', workerUrl);
                 this.emit('connect_error', error);
             };
             
         } catch (error) {
-            console.error('Failed to connect to Cloudflare Workers:', error);
+            console.error('🚨 Failed to create WebSocket connection:', error);
+            console.log('Worker URL:', workerUrl);
             this.emit('connect_error', error);
         }
     }

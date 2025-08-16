@@ -6,29 +6,44 @@ export default {
     const upgradeHeader = request.headers.get('Upgrade');
     
     if (!upgradeHeader || upgradeHeader !== 'websocket') {
-      return new Response('Expected Upgrade: websocket', { status: 426 });
+      return new Response('GoKarts Multiplayer Server is running! Use WebSocket to connect.', { 
+        status: 200,
+        headers: {
+          'Content-Type': 'text/plain',
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
     }
 
-    const webSocketPair = new WebSocketPair();
-    const [client, server] = Object.values(webSocketPair);
+    try {
+      const webSocketPair = new WebSocketPair();
+      const [client, server] = Object.values(webSocketPair);
 
-    server.accept();
-    
-    // Store in Durable Objects for persistence
-    const gameRoomId = env.GAME_ROOMS.idFromName('default');
-    const gameRoom = env.GAME_ROOMS.get(gameRoomId);
-    
-    // Forward WebSocket to Durable Object
-    await gameRoom.fetch(request, {
-      method: 'POST',
-      body: JSON.stringify({ type: 'websocket' }),
-      headers: { 'Content-Type': 'application/json' }
-    });
+      server.accept();
+      
+      // Get or create game room
+      const gameRoomId = env.GAME_ROOMS.idFromName('default');
+      const gameRoom = env.GAME_ROOMS.get(gameRoomId);
+      
+      // Handle the WebSocket in the Durable Object
+      await gameRoom.fetch(new Request('https://dummy-url', {
+        method: 'POST',
+        webSocket: server
+      }));
 
-    return new Response(null, {
-      status: 101,
-      webSocket: client,
-    });
+      return new Response(null, {
+        status: 101,
+        webSocket: client,
+      });
+    } catch (error) {
+      console.error('WebSocket error:', error);
+      return new Response('WebSocket connection failed: ' + error.message, { 
+        status: 500,
+        headers: {
+          'Access-Control-Allow-Origin': '*'
+        }
+      });
+    }
   },
 };
 
@@ -43,26 +58,41 @@ export class GameRoom {
   }
 
   async fetch(request) {
-    const webSocketPair = new WebSocketPair();
-    const [client, server] = Object.values(webSocketPair);
+    // Get the WebSocket from the main worker
+    let websocket = request.webSocket;
     
-    server.accept();
-    this.sessions.add(server);
+    if (!websocket) {
+      console.error('No WebSocket provided to Durable Object');
+      return new Response('WebSocket required', { status: 400 });
+    }
     
-    server.addEventListener('message', event => {
-      const data = JSON.parse(event.data);
-      this.handleMessage(server, data);
+    // Accept and handle the WebSocket
+    websocket.accept();
+    this.sessions.add(websocket);
+    
+    websocket.addEventListener('message', event => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('Received message:', data.type);
+        this.handleMessage(websocket, data);
+      } catch (error) {
+        console.error('Message parse error:', error);
+      }
     });
     
-    server.addEventListener('close', event => {
-      this.sessions.delete(server);
-      // Handle player disconnect
+    websocket.addEventListener('close', event => {
+      console.log('Player disconnected:', event.code, event.reason);
+      this.sessions.delete(websocket);
+      this.players.delete(websocket);
     });
 
-    return new Response(null, {
-      status: 101,
-      webSocket: client,
+    websocket.addEventListener('error', event => {
+      console.error('WebSocket error in Durable Object:', event);
+      this.sessions.delete(websocket);
+      this.players.delete(websocket);
     });
+
+    return new Response('WebSocket handled', { status: 200 });
   }
 
   handleMessage(websocket, message) {
@@ -96,11 +126,23 @@ export class GameRoom {
     
     this.broadcast(JSON.stringify(roomData));
     
-    // Start race if we have at least 1 player (bots will fill the rest)
-    if (this.sessions.size >= 1 && this.gameState === 'waiting') {
-      setTimeout(() => {
-        this.startRace();
-      }, 3000);
+    // Only start race automatically if we have 2+ players or after 10 seconds with 1 player
+    if (this.gameState === 'waiting') {
+      if (this.sessions.size >= 2) {
+        // Start race quickly with multiple players
+        setTimeout(() => {
+          if (this.gameState === 'waiting') {
+            this.startRace();
+          }
+        }, 3000);
+      } else if (this.sessions.size === 1) {
+        // Wait longer for single player to give others time to join
+        setTimeout(() => {
+          if (this.gameState === 'waiting' && this.sessions.size >= 1) {
+            this.startRace();
+          }
+        }, 10000);
+      }
     }
   }
 

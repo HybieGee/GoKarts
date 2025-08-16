@@ -172,12 +172,65 @@ class GoKartsGame {
         let savedName = localStorage.getItem('gokarts_player_name');
         
         if (!savedName) {
-            savedName = prompt('Enter your player name:') || `Player_${Date.now().toString().slice(-6)}`;
-            localStorage.setItem('gokarts_player_name', savedName);
+            this.showPlayerNameModal();
+            return;
         }
         
         this.playerName = savedName;
+        this.continueWithName();
+    }
+    
+    showPlayerNameModal() {
+        const modal = document.getElementById('playerNameModal');
+        const input = document.getElementById('playerNameInput');
+        const confirmBtn = document.getElementById('confirmNameBtn');
+        const randomBtn = document.getElementById('randomNameBtn');
         
+        // Show modal
+        modal.classList.add('active');
+        input.focus();
+        
+        // Handle confirm button
+        const confirmHandler = () => {
+            const name = input.value.trim();
+            if (name && name.length >= 2) {
+                this.playerName = name;
+                localStorage.setItem('gokarts_player_name', name);
+                modal.classList.remove('active');
+                this.continueWithName();
+                cleanup();
+            } else {
+                input.style.borderColor = '#ff4444';
+                setTimeout(() => input.style.borderColor = '', 1000);
+            }
+        };
+        
+        // Handle random name button
+        const randomHandler = () => {
+            const randomNames = ['SpeedDemon', 'RaceKing', 'TurboRacer', 'NitroHero', 'RoadWarrior', 'FastLane', 'ZoomMaster', 'DriftKing'];
+            const randomName = randomNames[Math.floor(Math.random() * randomNames.length)] + Math.floor(Math.random() * 1000);
+            input.value = randomName;
+        };
+        
+        // Handle enter key
+        const keyHandler = (e) => {
+            if (e.key === 'Enter') confirmHandler();
+        };
+        
+        // Cleanup function
+        const cleanup = () => {
+            confirmBtn.removeEventListener('click', confirmHandler);
+            randomBtn.removeEventListener('click', randomHandler);
+            input.removeEventListener('keydown', keyHandler);
+        };
+        
+        // Add event listeners
+        confirmBtn.addEventListener('click', confirmHandler);
+        randomBtn.addEventListener('click', randomHandler);
+        input.addEventListener('keydown', keyHandler);
+    }
+    
+    continueWithName() {
         // Identify to server
         if (this.socket) {
             this.socket.emit('player-identify', {
@@ -268,22 +321,36 @@ class GoKartsGame {
             const targetX = canvasWidth * data.x;
             const targetY = canvasHeight * data.y;
             
-            // Smooth interpolation for better movement
-            const lerpFactor = 0.3; // Adjust for smoothness vs responsiveness
-            player.x = player.x + (targetX - player.x) * lerpFactor;
-            player.y = player.y + (targetY - player.y) * lerpFactor;
+            // Calculate distance to determine if we need to snap or interpolate
+            const distance = Math.sqrt((targetX - player.x) ** 2 + (targetY - player.y) ** 2);
             
-            // Angle interpolation
-            let targetAngle = data.angle;
-            let angleDiff = targetAngle - player.angle;
-            while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
-            while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-            player.angle += angleDiff * 0.3;
+            // If the distance is too large, snap to prevent teleporting appearance
+            // This helps when players join mid-race or there's network lag
+            if (distance > 100) {
+                player.x = targetX;
+                player.y = targetY;
+                player.angle = data.angle;
+            } else {
+                // Use more aggressive interpolation for closer positions
+                const lerpFactor = 0.6; // Increased from 0.3 for more responsive movement
+                player.x = player.x + (targetX - player.x) * lerpFactor;
+                player.y = player.y + (targetY - player.y) * lerpFactor;
+                
+                // Angle interpolation
+                let targetAngle = data.angle;
+                let angleDiff = targetAngle - player.angle;
+                while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                player.angle += angleDiff * 0.6; // More responsive angle updates
+            }
             
             // Update game state
             player.lapCount = data.lapCount;
             player.nextCheckpoint = data.nextCheckpoint;
             player.speed = data.speed || 0;
+            
+            // Store timestamp for prediction
+            player.lastUpdateTime = Date.now();
         }
     }
     

@@ -1,9 +1,9 @@
-// GoKarts Racing Game - UNIFIED PHYSICS v23 - 2024-12-16-21:10
-// FIXED: All players now use same physics system (local and remote)
-const GAME_VERSION = 'v23-unified-physics-2024-12-16-21:10';
+// GoKarts Racing Game - UNIFIED PHYSICS v23 - 2024-12-16-21:15
+// FIXED: All players use same physics + restored normal speeds
+const GAME_VERSION = 'v23-unified-physics-normal-speed-2024-12-16-21:15';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
 console.log('⚡ UNIFIED PHYSICS: All players use same physics system');
-console.log('📊 EXPECTED PHYSICS: maxSpeed=1, acceleration=0.08');
+console.log('🏁 NORMAL SPEEDS RESTORED: maxSpeed=4, acceleration=0.3');
 
 class GoKartsGame {
     constructor() {
@@ -390,8 +390,8 @@ class GoKartsGame {
                 angle: playerData.position.angle,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
-                maxSpeed: 1,  // EXTREMELY slow for testing
-                acceleration: 0.08,  // EXTREMELY slow acceleration
+                maxSpeed: 4,  // Normal racing speed
+                acceleration: 0.3,  // Normal acceleration
                 deceleration: 0.6,
                 friction: 0.85,
                 turnSpeed: 0.08,

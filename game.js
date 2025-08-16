@@ -384,8 +384,8 @@ class GoKartsGame {
                 angle: playerData.position.angle,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
-                maxSpeed: isLocal ? 4 : 3,  // Slower remote players
-                acceleration: isLocal ? 0.3 : 0.25,  // Slower acceleration for remote
+                maxSpeed: 3,  // Same speed for everyone in multiplayer
+                acceleration: 0.25,  // Same acceleration for everyone
                 deceleration: 0.6,
                 friction: 0.85,
                 turnSpeed: 0.08,
@@ -470,8 +470,8 @@ class GoKartsGame {
                 player.y = targetY;
                 player.angle = data.angle;
             } else {
-                // Slow interpolation to prevent teleporting appearance
-                const lerpFactor = 0.15; // Much slower for more realistic movement
+                // Smooth interpolation for network updates
+                const lerpFactor = 0.3; // Balanced interpolation
                 player.x = player.x + (targetX - player.x) * lerpFactor;
                 player.y = player.y + (targetY - player.y) * lerpFactor;
                 
@@ -480,14 +480,14 @@ class GoKartsGame {
                 let angleDiff = targetAngle - player.angle;
                 while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                 while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                player.angle += angleDiff * 0.15; // Much slower angle updates
+                player.angle += angleDiff * 0.3; // Smooth angle updates
             }
             
             // Update game state
             player.lapCount = data.lapCount;
             player.nextCheckpoint = data.nextCheckpoint;
-            // Significantly reduce apparent speed of remote players
-            player.speed = (data.speed || 0) * 0.5;
+            // Update speed from server data
+            player.speed = data.speed || 0;
             
             // Store timestamp for prediction
             player.lastUpdateTime = Date.now();
@@ -977,8 +977,8 @@ class GoKartsGame {
             angle: startAngle, // Face towards (0.72, 0.68)
             velocity: { x: 0, y: 0 },
             speed: 0,
-            maxSpeed: 4, // Reduced from 6 to balance with AI
-            acceleration: 0.3,
+            maxSpeed: 3, // Balanced for multiplayer
+            acceleration: 0.25,
             deceleration: 0.6,
             friction: 0.85,
             turnSpeed: 0.08,
@@ -1005,8 +1005,8 @@ class GoKartsGame {
                 angle: startAngle,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
-                maxSpeed: 3.5 + Math.random() * 1, // Increased from 3-3.5 to 3.5-4.5
-                acceleration: 0.25 + Math.random() * 0.1,
+                maxSpeed: 2.8 + Math.random() * 0.4, // 2.8-3.2 range for variety but balanced
+                acceleration: 0.22 + Math.random() * 0.06, // 0.22-0.28 range
                 deceleration: 0.5,
                 friction: 0.85,
                 turnSpeed: 0.06 + Math.random() * 0.02,

@@ -210,6 +210,7 @@ class GoKartsGame {
                 lapCount: 1,
                 position: index + 1,
                 isLocal: isLocal,
+                isBot: playerData.isBot || false,
                 image: this.playerImages[index % this.playerImages.length],
                 nextCheckpoint: 0,
                 checkpointsPassed: [],
@@ -280,8 +281,9 @@ class GoKartsGame {
             resultTitle.textContent = '🏆 You Won!';
             resultTitle.style.color = '#ffd700';
         } else {
-            resultTitle.textContent = `🏁 ${data.winner.name} Won!`;
-            resultTitle.style.color = '#ff6b6b';
+            const winnerPrefix = data.winner.isBot ? '🤖 ' : '';
+            resultTitle.textContent = `🏁 ${winnerPrefix}${data.winner.name} Won!`;
+            resultTitle.style.color = data.winner.isBot ? '#ff9500' : '#ff6b6b';
         }
         
         // Display final positions
@@ -292,9 +294,12 @@ class GoKartsGame {
             if (index === 0) entry.classList.add('winner');
             if (player.id === this.playerId) entry.style.background = 'rgba(76, 236, 196, 0.2)';
             
+            const playerName = player.isBot ? `🤖 ${player.name}` : player.name;
+            const playerIndicator = player.id === this.playerId ? '(You)' : (player.isBot ? '(Bot)' : '');
+            
             entry.innerHTML = `
-                <span>${player.position}. ${player.name}</span>
-                <span>${player.id === this.playerId ? '(You)' : ''}</span>
+                <span>${player.position}. ${playerName}</span>
+                <span>${playerIndicator}</span>
             `;
             resultsList.appendChild(entry);
         });
@@ -1020,7 +1025,10 @@ class GoKartsGame {
         this.ctx.fillStyle = 'white';
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText(`${player.name} (${player.position})`, player.x, player.y - 40);
+        
+        // Add bot indicator
+        const nameText = player.isBot ? `🤖 ${player.name} (${player.position})` : `${player.name} (${player.position})`;
+        this.ctx.fillText(nameText, player.x, player.y - 40);
     }
     
     drawCheckpoints() {

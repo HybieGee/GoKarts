@@ -130,8 +130,6 @@ class GoKartsGame {
                 // Add appropriate icons
                 const icons = {
                     twitter: '🐦',
-                    discord: '💬',
-                    telegram: '📱',
                     website: '🌐'
                 };
                 
@@ -176,10 +174,12 @@ class GoKartsGame {
             });
         }
         
-        if (explorerBtn && window.GAME_CONFIG) {
+        if (explorerBtn && window.GAME_CONFIG && window.GAME_CONFIG.BUY_BUTTON.enabled) {
+            // Update button text
+            explorerBtn.textContent = window.GAME_CONFIG.BUY_BUTTON.text;
+            
             explorerBtn.addEventListener('click', () => {
-                const explorerUrl = `${window.GAME_CONFIG.NETWORK.explorerUrl}/token/${window.GAME_CONFIG.CONTRACT_ADDRESS}`;
-                window.open(explorerUrl, '_blank');
+                window.open(window.GAME_CONFIG.BUY_BUTTON.url, '_blank');
             });
         }
     }
@@ -229,6 +229,22 @@ class GoKartsGame {
         const aboutBtn = document.getElementById('aboutBtn');
         if (aboutBtn) {
             aboutBtn.addEventListener('click', () => this.showAbout());
+        }
+        
+        // Add modal close handler
+        const closeAboutModal = document.getElementById('closeAboutModal');
+        if (closeAboutModal) {
+            closeAboutModal.addEventListener('click', () => this.closeAbout());
+        }
+        
+        // Close modal when clicking outside
+        const aboutModal = document.getElementById('aboutModal');
+        if (aboutModal) {
+            aboutModal.addEventListener('click', (e) => {
+                if (e.target === aboutModal) {
+                    this.closeAbout();
+                }
+            });
         }
         
         // Game controls
@@ -851,20 +867,45 @@ class GoKartsGame {
     
     showAbout() {
         const config = window.GAME_CONFIG;
-        const aboutText = `
-${config?.BRANDING?.gameTitle || 'GoKarts Racing'}
-
-${config?.BRANDING?.description || 'The ultimate crypto racing game!'}
-
-Features:
-${config?.FEATURES?.join('\n') || '• Racing\n• Multiplayer\n• Leaderboards'}
-
-Contract: ${config?.CONTRACT_ADDRESS || 'Not configured'}
-Network: ${config?.NETWORK?.name || 'Ethereum'}
-
-Built with ❤️ for the crypto racing community!
-        `;
-        alert(aboutText);
+        if (!config) return;
+        
+        // Populate modal content
+        const aboutTitle = document.getElementById('aboutTitle');
+        const aboutDescription = document.getElementById('aboutDescription');
+        const aboutFeatures = document.getElementById('aboutFeatures');
+        const aboutNetwork = document.getElementById('aboutNetwork');
+        const aboutToken = document.getElementById('aboutToken');
+        
+        if (aboutTitle) aboutTitle.textContent = config.BRANDING.gameTitle;
+        if (aboutDescription) aboutDescription.textContent = config.BRANDING.description;
+        if (aboutNetwork) aboutNetwork.textContent = config.NETWORK.name;
+        if (aboutToken) aboutToken.textContent = config.CONTRACT_SYMBOL;
+        
+        // Populate features
+        if (aboutFeatures && config.FEATURES) {
+            aboutFeatures.innerHTML = '';
+            config.FEATURES.forEach(feature => {
+                const featureItem = document.createElement('div');
+                featureItem.className = 'feature-item';
+                featureItem.textContent = feature;
+                aboutFeatures.appendChild(featureItem);
+            });
+        }
+        
+        // Show modal
+        const modal = document.getElementById('aboutModal');
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+    }
+    
+    closeAbout() {
+        const modal = document.getElementById('aboutModal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = ''; // Restore scrolling
+        }
     }
 }
 

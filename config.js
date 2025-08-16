@@ -1,15 +1,22 @@
 // GoKarts Game Configuration
 const GAME_CONFIG = {
     // Contract Information
-    CONTRACT_ADDRESS: "0x1234567890abcdef1234567890abcdef12345678", // Replace with your actual CA
+    CONTRACT_ADDRESS: "TBD_PUMP_FUN_ADDRESS", // Will be updated after Pump.fun launch
     CONTRACT_NAME: "GoKarts Token",
     CONTRACT_SYMBOL: "GOKART",
     
     // Blockchain Network
     NETWORK: {
-        name: "Ethereum",
-        chainId: 1,
-        explorerUrl: "https://etherscan.io"
+        name: "Solana",
+        chainId: 101,
+        explorerUrl: "https://solscan.io"
+    },
+    
+    // Buy Button Configuration
+    BUY_BUTTON: {
+        enabled: true,
+        url: "https://pump.fun/TBD_PUMP_FUN_ADDRESS", // Will be updated after launch
+        text: "🚀 Buy on Pump.fun"
     },
     
     // Game Settings
@@ -28,8 +35,6 @@ const GAME_CONFIG = {
         // Social Links
         socials: {
             twitter: "https://twitter.com/gokarts",
-            discord: "https://discord.gg/gokarts", 
-            telegram: "https://t.me/gokarts",
             website: "https://gokarts.game"
         }
     },
@@ -39,9 +44,19 @@ const GAME_CONFIG = {
         "🏁 Real-time multiplayer racing",
         "🎯 Precision checkpoint system", 
         "🏆 Competitive leaderboards",
-        "💎 Crypto integration ready",
-        "🚀 Fast-paced gameplay"
-    ]
+        "💎 Launching on Pump.fun",
+        "⛽ Free gas fees for top players",
+        "📱 Mobile app coming soon"
+    ],
+    
+    // Rewards System
+    REWARDS: {
+        gasFeeGiveaway: {
+            enabled: true,
+            interval: 30, // minutes
+            description: "Gas fees covered for the top leaderboard player every 30 minutes!"
+        }
+    }
 };
 
 // Make config available globally

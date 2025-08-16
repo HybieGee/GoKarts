@@ -725,7 +725,7 @@ class GoKartsGame {
         this.showScreen('waitingScreen');
         this.gameState = 'waiting';
         
-        if (this.isMultiplayer && this.socket) {
+        if (this.socket && this.socket.connected) {
             // Join matchmaking queue using REST API
             this.socket.joinQueue().catch(error => {
                 console.error('Failed to join queue:', error);
@@ -735,6 +735,17 @@ class GoKartsGame {
             
             // Update UI to show queue status
             this.updateWaitingScreenText('Finding match...', '⏳ Searching for players');
+        } else if (this.socket && !this.socket.connected) {
+            // Wait for connection and retry
+            this.updateWaitingScreenText('Connecting...', '🔄 Establishing connection');
+            setTimeout(() => {
+                if (this.socket && this.socket.connected) {
+                    this.startMatchmaking();
+                } else {
+                    console.log('Connection failed, starting offline race...');
+                    this.startRace();
+                }
+            }, 2000);
         } else {
             // Fallback to single player mode
             console.log('Starting offline race...');

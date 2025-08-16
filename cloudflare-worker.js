@@ -27,10 +27,10 @@ export default {
       console.log('🏠 Using game room:', gameRoomId.toString());
       
       // Handle the WebSocket in the Durable Object
-      await gameRoom.fetch(new Request('https://dummy-url', {
+      await gameRoom.fetch('https://dummy-url', {
         method: 'POST',
         webSocket: server
-      }));
+      });
 
       return new Response(null, {
         status: 101,
@@ -59,8 +59,8 @@ export class GameRoom {
   }
 
   async fetch(request) {
-    // Get the WebSocket from the main worker
-    let websocket = request.webSocket;
+    // Get the WebSocket from the request
+    const websocket = request.webSocket;
     
     if (!websocket) {
       console.error('No WebSocket provided to Durable Object');

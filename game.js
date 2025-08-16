@@ -148,10 +148,10 @@ class GoKartsGame {
         // Create 5 players (including local player)
         this.players = [];
         
-        // All players start at the same position (with fallback canvas dimensions)
+        // All players start at the same position behind the start line (with fallback canvas dimensions)
         const canvasWidth = this.canvas.width || 1200;
         const canvasHeight = this.canvas.height || 800;
-        const startPosition = { x: canvasWidth * 0.90, y: canvasHeight * 0.79 };
+        const startPosition = { x: canvasWidth * 0.83, y: canvasHeight * 0.79 };
         
         // Local player (always player 1)
         this.localPlayer = {

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Connection Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a1a; color: white; }
+        .log { background: #333; padding: 15px; border-radius: 8px; margin: 10px 0; font-family: monospace; height: 300px; overflow-y: auto; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .status { padding: 10px; border-radius: 5px; margin: 10px 0; font-weight: bold; }
+        .connected { background: #28a745; }
+        .disconnected { background: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>🔗 Direct WebSocket Connection Test</h1>
+    
+    <div id="status" class="status disconnected">🔴 Disconnected</div>
+    
+    <button onclick="testDirectConnection()">Test Direct WebSocket</button>
+    <button onclick="testViaClient()">Test Via WebSocket Client</button>
+    <button onclick="clearLog()">Clear Log</button>
+    
+    <h3>📋 Connection Log</h3>
+    <div id="log" class="log">Ready to test...\n</div>
+
+    <script src="websocket-client.js"></script>
+    <script>
+        const logDiv = document.getElementById('log');
+        const statusDiv = document.getElementById('status');
+        let ws = null;
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(status, text) {
+            statusDiv.className = `status ${status}`;
+            statusDiv.textContent = text;
+        }
+
+        function clearLog() {
+            logDiv.textContent = 'Log cleared...\n';
+        }
+
+        function testDirectConnection() {
+            log('🚀 Testing direct WebSocket connection...');
+            
+            if (ws) {
+                ws.close();
+            }
+
+            try {
+                ws = new WebSocket('wss://gokarts-multiplayer.stealthbundlebot.workers.dev');
+                
+                ws.onopen = () => {
+                    log('✅ Direct WebSocket connected!');
+                    updateStatus('connected', '🟢 Connected (Direct)');
+                    
+                    // Test sending a message
+                    const testMessage = { type: 'player-identify', name: 'DirectTestPlayer' };
+                    ws.send(JSON.stringify(testMessage));
+                    log('📤 Sent test message: ' + JSON.stringify(testMessage));
+                };
+                
+                ws.onmessage = (event) => {
+                    log('📨 Received: ' + event.data);
+                };
+                
+                ws.onclose = (event) => {
+                    log(`❌ Direct WebSocket closed: Code ${event.code}, Reason: ${event.reason || 'No reason'}`);
+                    updateStatus('disconnected', '🔴 Disconnected');
+                };
+                
+                ws.onerror = (error) => {
+                    log('🚨 Direct WebSocket error: ' + error);
+                    updateStatus('disconnected', '🔴 Error');
+                };
+                
+            } catch (error) {
+                log('🚨 Failed to create direct WebSocket: ' + error.message);
+                updateStatus('disconnected', '🔴 Failed');
+            }
+        }
+
+        function testViaClient() {
+            log('🚀 Testing via WebSocket client...');
+            
+            if (typeof createCloudflareClient === 'undefined') {
+                log('❌ WebSocket client not loaded!');
+                return;
+            }
+
+            try {
+                const client = createCloudflareClient();
+                
+                client.on('connect', () => {
+                    log('✅ Client WebSocket connected!');
+                    updateStatus('connected', '🟢 Connected (Client)');
+                    
+                    // Test sending a message
+                    client.emit('player-identify', { name: 'ClientTestPlayer' });
+                    log('📤 Sent via client: player-identify');
+                });
+                
+                client.on('disconnect', () => {
+                    log('❌ Client WebSocket disconnected');
+                    updateStatus('disconnected', '🔴 Disconnected');
+                });
+                
+                client.on('connect_error', (error) => {
+                    log('🚨 Client connection error: ' + error);
+                    updateStatus('disconnected', '🔴 Error');
+                });
+                
+                client.connect('wss://gokarts-multiplayer.stealthbundlebot.workers.dev');
+                log('🔗 Connecting via client...');
+                
+            } catch (error) {
+                log('🚨 Client test failed: ' + error.message);
+                updateStatus('disconnected', '🔴 Failed');
+            }
+        }
+
+        // Auto-test on page load
+        setTimeout(() => {
+            log('🔄 Auto-testing direct connection...');
+            testDirectConnection();
+        }, 1000);
+    </script>
+</body>
+</html>

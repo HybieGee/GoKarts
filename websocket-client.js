@@ -20,7 +20,9 @@ class CloudflareGameClient {
         this.isConnected = true;
         this.currentState = 'connected';
         console.log(`✅ Client initialized with base URL: ${baseUrl}, Player ID: ${this._playerId}`);
+        console.log(`🔥 About to emit connect event. Handlers:`, this.eventHandlers.get('connect'));
         this.emit('connect');
+        console.log(`🔥 Connect event emitted!`);
     }
 
     // Join matchmaking queue using REST API

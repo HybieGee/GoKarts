@@ -1,63 +1,244 @@
-// WebSocket client for Cloudflare Workers (replaces Socket.io)
+// WebSocket client for Cloudflare Workers - VERSION 4.0 REST CONTRACT
 class CloudflareGameClient {
     constructor() {
-        this.ws = null;
+        this.roomWs = null;
         this.isConnected = false;
         this.playerId = null;
         this.eventHandlers = new Map();
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
+        this.currentState = 'disconnected'; // disconnected, queued, matched, in-room, racing
+        this.roomId = null;
+        this.baseUrl = 'https://gokarts-multiplayer.stealthbundlebot.workers.dev';
+        this.pollInterval = null;
+        this.heartbeatInterval = null;
     }
 
-    connect(workerUrl = 'wss://gokarts-multiplayer.your-subdomain.workers.dev') {
-        console.log(`🔗 Connecting to: ${workerUrl}`);
+    connect(baseUrl = 'https://gokarts-multiplayer.stealthbundlebot.workers.dev') {
+        this.baseUrl = baseUrl;
+        this.playerId = this.generateId();
+        this.isConnected = true;
+        this.currentState = 'connected';
+        console.log(`✅ Client initialized with base URL: ${baseUrl}, Player ID: ${this.playerId}`);
+        this.emit('connect');
+    }
+
+    // Join matchmaking queue using REST API
+    async joinQueue() {
+        if (!this.playerId) {
+            throw new Error('Player ID not set');
+        }
+
+        try {
+            console.log(`🏁 Joining queue with player ID: ${this.playerId}`);
+            const response = await fetch(`${this.baseUrl}/api/queue/join`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ playerId: this.playerId })
+            });
+
+            const result = await response.json();
+            console.log('Queue join result:', result);
+
+            if (result.status === 'matched') {
+                // Immediately matched!
+                this.currentState = 'matched';
+                this.roomId = result.roomId;
+                this.emit('match-found', result);
+                await this.connectToRoom(result.wsUrl);
+            } else if (result.status === 'queued') {
+                // Start polling
+                this.currentState = 'queued';
+                this.emit('queue-update', result);
+                this.startPolling();
+            }
+
+            return result;
+        } catch (error) {
+            console.error('Failed to join queue:', error);
+            this.emit('connect_error', error);
+            throw error;
+        }
+    }
+
+    // Start polling for queue updates
+    startPolling() {
+        if (this.pollInterval) return;
+
+        this.pollInterval = setInterval(async () => {
+            try {
+                const response = await fetch(`${this.baseUrl}/api/queue/poll?playerId=${this.playerId}`);
+                const result = await response.json();
+                console.log('Poll result:', result);
+
+                if (result.status === 'matched') {
+                    this.stopPolling();
+                    this.currentState = 'matched';
+                    this.roomId = result.roomId;
+                    this.emit('match-found', result);
+                    await this.connectToRoom(result.wsUrl);
+                } else if (result.status === 'queued') {
+                    this.emit('queue-update', result);
+                } else if (result.status === 'timeout') {
+                    this.stopPolling();
+                    this.currentState = 'disconnected';
+                    this.emit('queue-timeout');
+                }
+            } catch (error) {
+                console.error('Polling error:', error);
+                this.emit('connect_error', error);
+            }
+        }, 2000); // Poll every 2 seconds
+    }
+
+    stopPolling() {
+        if (this.pollInterval) {
+            clearInterval(this.pollInterval);
+            this.pollInterval = null;
+        }
+    }
+
+    // Cancel queue
+    async cancelQueue() {
+        try {
+            await fetch(`${this.baseUrl}/api/queue/cancel`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ playerId: this.playerId })
+            });
+            this.stopPolling();
+            this.currentState = 'connected';
+            this.emit('queue-cancelled');
+        } catch (error) {
+            console.error('Failed to cancel queue:', error);
+        }
+    }
+
+    // Connect to WebSocket room
+    async connectToRoom(wsUrl) {
+        console.log(`🏠 Connecting to room: ${wsUrl}`);
         
         try {
-            this.ws = new WebSocket(workerUrl);
+            this.roomWs = new WebSocket(wsUrl);
             
-            this.ws.onopen = () => {
-                console.log('✅ Connected to Cloudflare Workers multiplayer!');
-                this.isConnected = true;
-                this.reconnectAttempts = 0;
-                this.playerId = this.generateId();
-                this.emit('connect');
+            this.roomWs.onopen = () => {
+                console.log('✅ Connected to race room!');
+                this.currentState = 'in-room';
+                
+                // Send HELLO message
+                this.sendRoomMessage({ t: "HELLO", playerId: this.playerId });
+                
+                // Start heartbeat
+                this.startHeartbeat();
+                
+                this.emit('room-connected');
             };
             
-            this.ws.onmessage = (event) => {
+            this.roomWs.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    console.log('📨 Received:', data.type, data);
-                    // Trigger local handlers WITHOUT sending back to server
-                    const handlers = this.eventHandlers.get(data.type) || [];
-                    handlers.forEach(handler => handler(data));
+                    console.log('📨 Room received:', data.t, data);
+                    this.handleRoomMessage(data);
                 } catch (err) {
-                    console.error('Failed to parse message:', err);
-                    console.log('Raw message:', event.data);
+                    console.error('Failed to parse room message:', err);
                 }
             };
             
-            this.ws.onclose = (event) => {
-                console.log(`❌ Disconnected from Cloudflare Workers (Code: ${event.code}, Reason: ${event.reason})`);
-                this.isConnected = false;
-                this.emit('disconnect');
+            this.roomWs.onclose = (event) => {
+                console.log(`❌ Room disconnected (Code: ${event.code})`);
+                this.stopHeartbeat();
                 
-                // Don't auto-reconnect if it was a normal close
-                if (event.code !== 1000) {
-                    this.attemptReconnect();
+                // If disconnected before race started, try to re-queue
+                if (this.currentState === 'in-room') {
+                    console.log('🔄 Connection lost before race start, attempting to re-queue...');
+                    this.currentState = 'connected';
+                    this.emit('connection-lost-requeue');
+                } else {
+                    this.currentState = 'disconnected';
+                    this.emit('disconnect');
                 }
             };
             
-            this.ws.onerror = (error) => {
-                console.error('🚨 WebSocket error:', error);
-                console.log('Worker URL:', workerUrl);
+            this.roomWs.onerror = (error) => {
+                console.error('🚨 Room WebSocket error:', error);
                 this.emit('connect_error', error);
             };
             
         } catch (error) {
-            console.error('🚨 Failed to create WebSocket connection:', error);
-            console.log('Worker URL:', workerUrl);
+            console.error('🚨 Failed to connect to room:', error);
             this.emit('connect_error', error);
         }
+    }
+
+    handleRoomMessage(data) {
+        switch (data.t) {
+            case 'WELCOME':
+                console.log(`🎉 Welcome to room ${data.roomId}! Players: ${data.players.length}`);
+                this.emit('welcome', data);
+                break;
+            case 'START':
+                console.log(`🚀 Race starting! Countdown: ${data.countdown}`);
+                this.currentState = 'racing';
+                this.emit('race-countdown', data);
+                break;
+            case 'PEER_JOIN':
+                console.log(`👤 Player ${data.playerId} joined`);
+                this.emit('peer-join', data);
+                break;
+            case 'PEER_LEAVE':
+                console.log(`👋 Player ${data.playerId} left`);
+                this.emit('peer-leave', data);
+                break;
+            case 'PEER_STATE':
+                this.emit('peer-state', data);
+                break;
+            case 'PONG':
+                // Heartbeat response
+                break;
+            case 'KICK':
+                console.warn(`🚨 Kicked from room: ${data.reason}`);
+                this.emit('kicked', data);
+                break;
+            case 'END':
+                console.log(`🏁 Room ended: ${data.reason}`);
+                this.emit('room-end', data);
+                break;
+            default:
+                console.warn('Unknown room message:', data.t);
+        }
+    }
+
+    // Send message to room WebSocket
+    sendRoomMessage(message) {
+        if (this.roomWs && this.roomWs.readyState === WebSocket.OPEN) {
+            this.roomWs.send(JSON.stringify(message));
+        } else {
+            console.warn('Cannot send room message: not connected');
+        }
+    }
+
+    // Start heartbeat pings
+    startHeartbeat() {
+        if (this.heartbeatInterval) return;
+        
+        this.heartbeatInterval = setInterval(() => {
+            this.sendRoomMessage({ t: "PING" });
+        }, 10000); // Ping every 10 seconds
+    }
+
+    stopHeartbeat() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
+    }
+
+    // Send game state
+    sendGameState(pos) {
+        this.sendRoomMessage({
+            t: "STATE",
+            pos: pos
+        });
     }
 
     attemptReconnect() {
@@ -73,22 +254,9 @@ class CloudflareGameClient {
     }
 
     emit(eventType, data = {}) {
-        if (eventType === 'connect' || eventType === 'disconnect' || eventType === 'connect_error') {
-            // Handle connection events
-            const handlers = this.eventHandlers.get(eventType) || [];
-            handlers.forEach(handler => handler(data));
-        } else {
-            // Send data to server
-            if (this.isConnected && this.ws) {
-                const message = {
-                    type: eventType,
-                    ...data
-                };
-                this.ws.send(JSON.stringify(message));
-            } else {
-                console.warn('Cannot send message: not connected');
-            }
-        }
+        // All events are now local events (no automatic sending to server)
+        const handlers = this.eventHandlers.get(eventType) || [];
+        handlers.forEach(handler => handler(data));
     }
 
     on(eventType, handler) {
@@ -107,11 +275,16 @@ class CloudflareGameClient {
     }
 
     disconnect() {
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
+        this.stopPolling();
+        this.stopHeartbeat();
+        
+        if (this.roomWs) {
+            this.roomWs.close();
+            this.roomWs = null;
         }
+        
         this.isConnected = false;
+        this.currentState = 'disconnected';
     }
 
     generateId() {
@@ -125,6 +298,19 @@ class CloudflareGameClient {
 
     get connected() {
         return this.isConnected;
+    }
+    
+    // Additional helper methods
+    isInQueue() {
+        return this.currentState === 'matchmaking';
+    }
+    
+    isInRoom() {
+        return this.currentState === 'in-room' || this.currentState === 'racing';
+    }
+    
+    getCurrentState() {
+        return this.currentState;
     }
 }
 

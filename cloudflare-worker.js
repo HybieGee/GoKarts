@@ -1,350 +1,581 @@
 // Cloudflare Worker for GoKarts Multiplayer
-// This would replace our Node.js server
+// VERSION 4.0 - PROPER MATCHMAKING ARCHITECTURE
 
 export default {
   async fetch(request, env, ctx) {
+    const url = new URL(request.url);
     const upgradeHeader = request.headers.get('Upgrade');
     
+    // CORS headers
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': env.ALLOWED_ORIGINS || '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    };
+
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 200, headers: corsHeaders });
+    }
+    
+    // Handle REST API endpoints
     if (!upgradeHeader || upgradeHeader !== 'websocket') {
-      // Add reset endpoint for debugging
-      const url = new URL(request.url);
-      if (url.pathname === '/reset') {
-        const gameRoomId = env.GAME_ROOMS.idFromName('default');
-        const gameRoom = env.GAME_ROOMS.get(gameRoomId);
-        await gameRoom.fetch(new Request('https://dummy-url/reset', { method: 'POST' }));
-        return new Response('Room reset!', { status: 200 });
+      // Queue join endpoint
+      if (url.pathname === '/api/queue/join' && request.method === 'POST') {
+        const { playerId } = await request.json();
+        const matchmakerId = env.MATCHMAKER.idFromName('global-matchmaker');
+        const matchmaker = env.MATCHMAKER.get(matchmakerId);
+        const response = await matchmaker.fetch(new Request('https://dummy-url/join', {
+          method: 'POST',
+          body: JSON.stringify({ playerId })
+        }));
+        const result = await response.json();
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
       
-      return new Response('GoKarts Multiplayer Server is running! Use WebSocket to connect.', { 
-        status: 200,
-        headers: {
-          'Content-Type': 'text/plain',
-          'Access-Control-Allow-Origin': '*'
-        }
-      });
+      // Queue cancel endpoint
+      if (url.pathname === '/api/queue/cancel' && request.method === 'POST') {
+        const { playerId } = await request.json();
+        const matchmakerId = env.MATCHMAKER.idFromName('global-matchmaker');
+        const matchmaker = env.MATCHMAKER.get(matchmakerId);
+        await matchmaker.fetch(new Request('https://dummy-url/cancel', {
+          method: 'POST',
+          body: JSON.stringify({ playerId })
+        }));
+        return new Response(JSON.stringify({ status: "cancelled" }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      // Queue poll endpoint
+      if (url.pathname === '/api/queue/poll' && request.method === 'GET') {
+        const playerId = url.searchParams.get('playerId');
+        const matchmakerId = env.MATCHMAKER.idFromName('global-matchmaker');
+        const matchmaker = env.MATCHMAKER.get(matchmakerId);
+        const response = await matchmaker.fetch(new Request(`https://dummy-url/poll?playerId=${playerId}`, {
+          method: 'GET'
+        }));
+        const result = await response.json();
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      // Health check
+      if (url.pathname === '/health') {
+        return new Response('GoKarts Multiplayer Server is running!', { 
+          headers: { ...corsHeaders, 'Content-Type': 'text/plain' }
+        });
+      }
+      
+      return new Response('Not Found', { status: 404, headers: corsHeaders });
     }
 
     try {
-      // Use timestamp-based room names to force new instances
-      const roomName = `room-${Math.floor(Date.now() / 60000)}`; // New room every minute
-      const gameRoomId = env.GAME_ROOMS.idFromName(roomName);
-      const gameRoom = env.GAME_ROOMS.get(gameRoomId);
-      console.log('🏠 Using game room:', roomName);
+      // WebSocket routing
+      if (url.pathname.startsWith('/ws/room/')) {
+        const roomId = url.pathname.split('/')[3];
+        const roomDOId = env.ROOM_DO.idFromName(roomId);
+        const roomDO = env.ROOM_DO.get(roomDOId);
+        return roomDO.fetch(request);
+      }
       
-      // Pass the WebSocket upgrade to the Durable Object directly
-      return gameRoom.fetch(request);
+      return new Response('WebSocket endpoint not found', { status: 404 });
     } catch (error) {
-      console.error('WebSocket error:', error);
+      console.error('WebSocket routing error:', error);
       return new Response('WebSocket connection failed: ' + error.message, { 
         status: 500,
-        headers: {
-          'Access-Control-Allow-Origin': '*'
-        }
+        headers: corsHeaders
       });
     }
   },
 };
 
-// Durable Object for game state
-export class GameRoom {
+// MatchmakerDO - Single global queue with capacity checks
+export class MatchmakerDO {
   constructor(controller, env) {
     this.controller = controller;
     this.env = env;
-    this.sessions = new Set();
-    this.players = new Map();
-    this.gameState = 'waiting';
+    this.queue = [];
+    this.roomSize = 5;
+    this.minPlayersToStart = 2;
+    this.ttlMs = 20000; // 20 seconds timeout
   }
 
   async fetch(request) {
-    // Handle reset request
     const url = new URL(request.url);
-    if (url.pathname === '/reset') {
-      this.gameState = 'waiting';
-      this.sessions.clear();
-      this.players.clear();
-      console.log('🔄 Room reset!');
-      return new Response('Room reset', { status: 200 });
+    
+    // Handle REST API endpoints
+    if (url.pathname === '/join' && request.method === 'POST') {
+      const { playerId } = await request.json();
+      return await this.handleJoin(playerId);
     }
     
-    // Check if this is a WebSocket upgrade request
-    const upgradeHeader = request.headers.get('Upgrade');
+    if (url.pathname === '/cancel' && request.method === 'POST') {
+      const { playerId } = await request.json();
+      return await this.handleCancel(playerId);
+    }
     
+    if (url.pathname.startsWith('/poll') && request.method === 'GET') {
+      const playerId = url.searchParams.get('playerId');
+      return await this.handlePoll(playerId);
+    }
+    
+    return new Response('Not Found', { status: 404 });
+  }
+
+  async handleJoin(playerId) {
+    // Clean expired entries first
+    this.cleanExpiredEntries();
+    
+    // Check for idempotency - if player is already in queue, just return their status
+    const existingPlayer = this.queue.find(p => p.playerId === playerId);
+    if (existingPlayer) {
+      console.log(`🔄 [${playerId}] IDEMPOTENT_ENQUEUE - already in queue`);
+      const position = this.queue.findIndex(p => p.playerId === playerId) + 1;
+      const estWaitSec = Math.max(0, (position - 1) * 10);
+      
+      return new Response(JSON.stringify({
+        status: "queued",
+        position,
+        estWaitSec
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
+    const playerEntry = {
+      playerId,
+      enqueuedAt: Date.now(),
+      ttlMs: this.ttlMs
+    };
+
+    this.queue.push(playerEntry);
+    console.log(`🏁 [${playerId}] ENQUEUE - queue size: ${this.queue.length}`);
+
+    // Check if we can form a room immediately
+    if (this.queue.length >= this.minPlayersToStart) {
+      const playersForRoom = this.queue.splice(0, this.roomSize);
+      const roomData = await this.createRoom(playersForRoom.length);
+      
+      console.log(`🎯 [${roomData.roomId}] MATCHED - players: ${playersForRoom.map(p => p.playerId).join(', ')}`);
+      
+      // Mark this player as matched (they'll be removed from the response)
+      const thisPlayerIndex = playersForRoom.findIndex(p => p.playerId === playerId);
+      if (thisPlayerIndex !== -1) {
+        return new Response(JSON.stringify({
+          status: "matched",
+          roomId: roomData.roomId,
+          wsUrl: roomData.wsUrl
+        }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Player is now queued
+    const position = this.queue.findIndex(p => p.playerId === playerId) + 1;
+    const estWaitSec = Math.max(0, (position - 1) * 10); // rough estimate
+    
+    return new Response(JSON.stringify({
+      status: "queued",
+      position,
+      estWaitSec
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  async handleCancel(playerId) {
+    const wasInQueue = this.queue.some(p => p.playerId === playerId);
+    this.removeFromQueue(playerId);
+    
+    if (wasInQueue) {
+      console.log(`❌ [${playerId}] DEQUEUE - cancelled by user`);
+    }
+    
+    return new Response(JSON.stringify({ status: "cancelled" }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  async handlePoll(playerId) {
+    this.cleanExpiredEntries();
+    
+    const playerIndex = this.queue.findIndex(p => p.playerId === playerId);
+    
+    if (playerIndex === -1) {
+      return new Response(JSON.stringify({ status: "timeout" }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Check if player has expired
+    const player = this.queue[playerIndex];
+    if (Date.now() - player.enqueuedAt > player.ttlMs) {
+      this.removeFromQueue(playerId);
+      return new Response(JSON.stringify({ status: "timeout" }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Check if we can form a room
+    if (this.queue.length >= this.minPlayersToStart && playerIndex < this.roomSize) {
+      const playersForRoom = this.queue.splice(0, this.roomSize);
+      const roomData = await this.createRoom(playersForRoom.length);
+      
+      // This player is in the room
+      if (playersForRoom.some(p => p.playerId === playerId)) {
+        return new Response(JSON.stringify({
+          status: "matched",
+          roomId: roomData.roomId,
+          wsUrl: roomData.wsUrl
+        }), {
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Still queued
+    const position = playerIndex + 1;
+    const estWaitSec = Math.max(0, (position - 1) * 10);
+    
+    return new Response(JSON.stringify({
+      status: "queued",
+      position,
+      estWaitSec
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  cleanExpiredEntries() {
+    const now = Date.now();
+    const before = this.queue.length;
+    const expiredPlayers = this.queue.filter(p => now - p.enqueuedAt >= p.ttlMs);
+    this.queue = this.queue.filter(p => now - p.enqueuedAt < p.ttlMs);
+    
+    // Log expired players
+    expiredPlayers.forEach(p => {
+      console.log(`⏰ [${p.playerId}] DEQUEUE - timeout (${Math.round((now - p.enqueuedAt) / 1000)}s)`);
+    });
+    
+    if (before !== this.queue.length) {
+      console.log(`🧹 Queue cleanup: ${before} -> ${this.queue.length} (removed ${before - this.queue.length} expired)`);
+    }
+  }
+
+
+  async createRoom(size) {
+    const registryId = this.env.ROOM_REGISTRY.idFromName('global-registry');
+    const registry = this.env.ROOM_REGISTRY.get(registryId);
+    
+    const response = await registry.fetch(new Request('https://dummy-url/create-room', {
+      method: 'POST',
+      body: JSON.stringify({ size })
+    }));
+    
+    const result = await response.json();
+    
+    // Convert roomWebSocketPath to full wsUrl
+    const baseUrl = 'wss://gokarts-multiplayer.stealthbundlebot.workers.dev';
+    result.wsUrl = `${baseUrl}${result.roomWebSocketPath}`;
+    
+    return result;
+  }
+
+  removeFromQueue(playerId) {
+    const index = this.queue.findIndex(p => p.playerId === playerId);
+    if (index > -1) {
+      this.queue.splice(index, 1);
+      // Logging is done by the caller to provide context
+    }
+  }
+
+  generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  }
+}
+
+// RoomRegistryDO - Map of roomId -> RoomDO id
+export class RoomRegistryDO {
+  constructor(controller, env) {
+    this.controller = controller;
+    this.env = env;
+    this.rooms = new Map();
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    
+    if (request.method === 'POST' && url.pathname === '/create-room') {
+      const { size } = await request.json();
+      return this.createRoom(size);
+    }
+
+    return new Response('Method not allowed', { status: 405 });
+  }
+
+  async createRoom(size) {
+    const roomId = this.generateRoomId();
+    const roomWebSocketPath = `/ws/room/${roomId}`;
+    
+    // Store room mapping
+    this.rooms.set(roomId, {
+      id: roomId,
+      maxPlayers: size,
+      createdAt: Date.now()
+    });
+
+    console.log(`🏠 Created room ${roomId} for ${size} players`);
+
+    return new Response(JSON.stringify({
+      roomId,
+      roomWebSocketPath
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  generateRoomId() {
+    return 'room_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 4);
+  }
+}
+
+// RoomDO - Manages one race room
+export class RoomDO {
+  constructor(controller, env) {
+    this.controller = controller;
+    this.env = env;
+    this.members = new Map();
+    this.gameState = 'waiting';
+    this.maxPlayers = 5;
+    this.minPlayers = 2;
+    this.idleTimeoutMs = 30000; // 30s heartbeat timeout
+    this.heartbeatInterval = null;
+    this.roomId = null;
+  }
+
+  async fetch(request) {
+    const upgradeHeader = request.headers.get('Upgrade');
     if (!upgradeHeader || upgradeHeader !== 'websocket') {
       return new Response('Expected WebSocket upgrade', { status: 426 });
     }
 
-    // Create WebSocket pair
     const webSocketPair = new WebSocketPair();
     const [client, server] = Object.values(webSocketPair);
-
-    // Accept the server-side WebSocket
     server.accept();
-    this.sessions.add(server);
-    console.log(`🔌 Player connected! Total sessions: ${this.sessions.size}`);
-    
+
+    // Extract room ID from URL if not set
+    if (!this.roomId) {
+      const url = new URL(request.url);
+      this.roomId = url.pathname.split('/')[3] || this.generateId();
+    }
+
+    console.log(`🏠 New connection to room ${this.roomId}. Current members: ${this.members.size}`);
+
+    // Start heartbeat monitoring if first player
+    if (this.members.size === 0) {
+      this.startHeartbeatMonitoring();
+    }
+
     server.addEventListener('message', event => {
       try {
         const data = JSON.parse(event.data);
-        console.log(`📨 Received message: ${data.type} (from ${this.sessions.size} total sessions)`);
-        this.handleMessage(server, data);
+        this.handleRoomMessage(server, data);
       } catch (error) {
-        console.error('Message parse error:', error);
+        console.error('Room message error:', error);
+        this.sendMessage(server, { t: "KICK", reason: "Invalid message format" });
+        server.close();
       }
     });
-    
-    server.addEventListener('close', event => {
-      console.log('Player disconnected:', event.code, event.reason);
-      this.sessions.delete(server);
-      this.players.delete(server);
+
+    server.addEventListener('close', () => {
+      this.removeMemberByWebSocket(server);
     });
 
-    server.addEventListener('error', event => {
-      console.error('WebSocket error in Durable Object:', event);
-      this.sessions.delete(server);
-      this.players.delete(server);
-    });
-
-    // Return the client-side WebSocket to the browser
-    return new Response(null, {
-      status: 101,
-      webSocket: client
-    });
+    return new Response(null, { status: 101, webSocket: client });
   }
 
-  handleMessage(websocket, message) {
-    console.log(`🎮 Handling ${message.type} message`);
-    
-    switch (message.type) {
-      case 'player-identify':
-        const playerId = this.generateId();
-        this.players.set(websocket, {
-          id: playerId,
-          name: message.name,
-          position: { x: 0.8, y: 0.5, angle: 0 }
-        });
-        console.log(`👤 Player identified: ${message.name} (ID: ${playerId}), Total players: ${this.players.size}`);
+  handleRoomMessage(websocket, message) {
+    switch (message.t) {
+      case 'HELLO':
+        this.handlePlayerJoin(websocket, message.playerId);
         break;
-        
-      case 'find-match':
-        console.log(`🔍 Player ${this.players.get(websocket)?.name || 'Unknown'} looking for match`);
-        this.startMatchmaking(websocket);
+      case 'PING':
+        this.handlePing(websocket);
         break;
-        
-      case 'player-update':
-        this.broadcastPlayerUpdate(websocket, message);
+      case 'STATE':
+        this.handleGameState(websocket, message);
         break;
+      default:
+        console.warn('Unknown message type:', message.t);
     }
   }
 
-  startMatchmaking(websocket) {
-    console.log(`🏁 Starting matchmaking - Sessions: ${this.sessions.size}, Players: ${this.players.size}, Game State: ${this.gameState}`);
-    
-    // Reset game state if it's stuck in racing mode with no active race
-    if (this.gameState === 'racing') {
-      console.log(`🔄 Resetting stuck racing state to waiting`);
-      this.gameState = 'waiting';
+  handlePlayerJoin(websocket, playerId) {
+    if (this.members.size >= this.maxPlayers) {
+      this.sendMessage(websocket, { t: "KICK", reason: "Room full" });
+      websocket.close();
+      return;
     }
-    
-    // Broadcast to all players in room
-    const roomData = {
-      type: 'room-update',
-      playersCount: this.sessions.size,
-      maxPlayers: 5,
-      players: Array.from(this.players.values()).map(p => ({ id: p.id, name: p.name }))
+
+    const member = {
+      playerId,
+      websocket,
+      joinedAt: Date.now(),
+      lastHeartbeat: Date.now(),
+      ready: false
     };
-    
-    console.log(`📢 Broadcasting room update to ${this.sessions.size} sessions:`, roomData.players.map(p => p.name));
-    this.broadcast(JSON.stringify(roomData));
-    
-    // Only start race automatically if we have 2+ players or after 10 seconds with 1 player
-    if (this.gameState === 'waiting') {
-      if (this.sessions.size >= 2) {
-        console.log(`⚡ 2+ players detected, starting race in 3 seconds`);
-        // Start race quickly with multiple players
-        setTimeout(() => {
-          if (this.gameState === 'waiting') {
-            console.log(`🚀 Starting race with ${this.sessions.size} players`);
-            this.startRace();
-          }
-        }, 3000);
-      } else if (this.sessions.size === 1) {
-        console.log(`⏳ Single player detected, waiting 10 seconds for others`);
-        // Wait longer for single player to give others time to join
-        setTimeout(() => {
-          if (this.gameState === 'waiting' && this.sessions.size >= 1) {
-            console.log(`🚀 Starting race after timeout with ${this.sessions.size} players`);
-            this.startRace();
-          }
-        }, 10000);
-      }
-    } else {
-      console.log(`❌ Cannot start matchmaking - game state is ${this.gameState}`);
+
+    this.members.set(playerId, member);
+    console.log(`🏠 [${this.roomId}] [${playerId}] ROOM_JOIN - members: ${this.members.size}/${this.maxPlayers}`);
+
+    // Send welcome message
+    this.sendMessage(websocket, {
+      t: "WELCOME",
+      roomId: this.roomId,
+      players: Array.from(this.members.keys())
+    });
+
+    // Notify other players
+    this.broadcastExcept(websocket, { t: "PEER_JOIN", playerId });
+
+    // Check if we can start
+    if (this.members.size >= this.minPlayers && this.gameState === 'waiting') {
+      setTimeout(() => {
+        if (this.gameState === 'waiting') {
+          this.startCountdown();
+        }
+      }, 2000);
     }
   }
 
-  startRace() {
-    this.gameState = 'racing';
-    
-    // Create bots to fill empty slots
-    const botsNeeded = Math.min(5 - this.sessions.size, 4);
-    const bots = [];
-    const botNames = ['SpeedBot', 'RacerAI', 'TurboBot', 'ZoomBot'];
-    
-    for (let i = 0; i < botsNeeded; i++) {
-      bots.push({
-        id: `bot_${i}`,
-        name: botNames[i],
-        isBot: true,
-        position: { 
-          x: 0.8, 
-          y: 0.5, 
-          angle: Math.atan2(0.72 - 0.8, -(0.68 - 0.5)),
-          lapCount: 1,
-          nextCheckpoint: 0
-        }
-      });
-    }
-    
-    // Combine human players and bots
-    const allPlayers = [
-      ...Array.from(this.players.values()),
-      ...bots
-    ];
-    
-    const raceStartData = {
-      type: 'race-start',
-      players: allPlayers,
-      startTime: Date.now()
-    };
-    
-    this.broadcast(JSON.stringify(raceStartData));
-    
-    // Start bot AI if we have bots
-    if (bots.length > 0) {
-      this.startBotAI(bots);
+  handlePing(websocket) {
+    const member = Array.from(this.members.values()).find(m => m.websocket === websocket);
+    if (member) {
+      member.lastHeartbeat = Date.now();
+      this.sendMessage(websocket, { t: "PONG" });
     }
   }
 
-  startBotAI(bots) {
-    // Checkpoint positions
-    const checkpoints = [
-      { x: 0.655, y: 0.835 }, // CP1 center
-      { x: 0.425, y: 0.86 },  // CP2 center  
-      { x: 0.195, y: 0.71 },  // CP3 center
-      { x: 0.115, y: 0.38 },  // CP4 center
-      { x: 0.265, y: 0.175 }, // CP5 center
-      { x: 0.385, y: 0.33 },  // CP6 center
-      { x: 0.385, y: 0.57 },  // CP7 center
-      { x: 0.575, y: 0.525 }, // CP8 center
-      { x: 0.63, y: 0.26 },   // CP9 center
-      { x: 0.8, y: 0.21 }     // CP10 center
-    ];
-    
-    // Update bot positions every 50ms
-    const botInterval = setInterval(() => {
-      if (this.gameState !== 'racing') {
-        clearInterval(botInterval);
-        return;
-      }
-      
-      bots.forEach(bot => {
-        const currentCheckpoint = bot.position.nextCheckpoint || 0;
-        
-        if (currentCheckpoint < checkpoints.length) {
-          const target = checkpoints[currentCheckpoint];
-          
-          // Move toward target
-          const dx = target.x - bot.position.x;
-          const dy = target.y - bot.position.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          if (distance > 0.01) {
-            const speed = 0.006 + Math.random() * 0.002; // Variable bot speed
-            bot.position.x += (dx / distance) * speed;
-            bot.position.y += (dy / distance) * speed;
-            bot.position.angle = Math.atan2(dx, -dy);
-            
-            // Check if reached checkpoint
-            if (distance < 0.06) {
-              bot.position.nextCheckpoint = currentCheckpoint + 1;
-            }
-          }
-        } else {
-          // Head to start/finish line
-          const target = { x: 0.8125, y: 0.5175 }; // Start/finish center
-          const dx = target.x - bot.position.x;
-          const dy = target.y - bot.position.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
-          if (distance > 0.01) {
-            const speed = 0.006;
-            bot.position.x += (dx / distance) * speed;
-            bot.position.y += (dy / distance) * speed;
-            bot.position.angle = Math.atan2(dx, -dy);
-            
-            // Check if completed lap
-            if (distance < 0.06) {
-              bot.position.lapCount = (bot.position.lapCount || 1) + 1;
-              bot.position.nextCheckpoint = 0;
-            }
-          }
-        }
-        
-        // Broadcast bot position
-        const botUpdate = {
-          type: 'player-position',
-          playerId: bot.id,
-          x: bot.position.x,
-          y: bot.position.y,
-          angle: bot.position.angle,
-          lapCount: bot.position.lapCount || 1,
-          nextCheckpoint: bot.position.nextCheckpoint || 0,
-          speed: 3.5
-        };
-        
-        this.broadcast(JSON.stringify(botUpdate));
+  handleGameState(websocket, message) {
+    const member = Array.from(this.members.values()).find(m => m.websocket === websocket);
+    if (member) {
+      member.lastHeartbeat = Date.now();
+      // Broadcast game state to other players
+      this.broadcastExcept(websocket, {
+        t: "PEER_STATE",
+        playerId: member.playerId,
+        pos: message.pos
       });
-    }, 50); // 20 FPS updates
+    }
   }
 
-  broadcastPlayerUpdate(websocket, message) {
-    // Update player position
-    const player = this.players.get(websocket);
-    if (player) {
-      player.position = {
-        x: message.x,
-        y: message.y,
-        angle: message.angle,
-        lapCount: message.lapCount,
-        nextCheckpoint: message.nextCheckpoint
-      };
-      
-      // Broadcast to other players
-      const updateData = {
-        type: 'player-position',
-        playerId: player.id,
-        ...message
-      };
-      
-      this.sessions.forEach(session => {
-        if (session !== websocket) {
-          try {
-            session.send(JSON.stringify(updateData));
-          } catch (err) {
-            this.sessions.delete(session);
-          }
-        }
-      });
+  startCountdown() {
+    this.gameState = 'starting';
+    this.broadcast({ t: "START", countdown: 3 });
+    console.log(`🚀 [${this.roomId}] ROOM_START - countdown started with ${this.members.size} players`);
+    
+    setTimeout(() => {
+      this.gameState = 'racing';
+      console.log(`🏁 [${this.roomId}] RACE_STARTED - ${this.members.size} players racing`);
+    }, 3000);
+  }
+
+  sendMessage(websocket, message) {
+    try {
+      websocket.send(JSON.stringify(message));
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      this.removeMemberByWebSocket(websocket);
     }
   }
 
   broadcast(message) {
-    this.sessions.forEach(session => {
+    const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+    this.members.forEach((member) => {
       try {
-        session.send(message);
+        member.websocket.send(messageStr);
       } catch (err) {
-        // Handle closed connections
-        this.sessions.delete(session);
+        this.removeMemberByWebSocket(member.websocket);
+      }
+    });
+  }
+
+  broadcastExcept(excludeWebSocket, message) {
+    const messageStr = JSON.stringify(message);
+    this.members.forEach((member) => {
+      if (member.websocket !== excludeWebSocket) {
+        try {
+          member.websocket.send(messageStr);
+        } catch (err) {
+          this.removeMemberByWebSocket(member.websocket);
+        }
+      }
+    });
+  }
+
+  removeMemberByWebSocket(websocket) {
+    const member = Array.from(this.members.values()).find(m => m.websocket === websocket);
+    if (member) {
+      const playerId = member.playerId;
+      this.members.delete(playerId);
+      console.log(`👋 [${this.roomId}] [${playerId}] PEER_LEAVE - members: ${this.members.size}/${this.maxPlayers}`);
+      
+      // Notify other players
+      this.broadcast({ t: "PEER_LEAVE", playerId });
+      
+      if (this.members.size === 0) {
+        this.stopHeartbeatMonitoring();
+        console.log(`🏁 [${this.roomId}] ROOM_END - empty room, closing in 30s`);
+        // End room after 30 seconds of being empty
+        setTimeout(() => {
+          if (this.members.size === 0) {
+            console.log(`💀 [${this.roomId}] ROOM_DESTROYED - empty for 30s`);
+            this.broadcast({ t: "END", reason: "Empty room" });
+          }
+        }, 30000);
+      }
+    }
+  }
+
+  startHeartbeatMonitoring() {
+    this.heartbeatInterval = setInterval(() => {
+      const now = Date.now();
+      const toRemove = [];
+
+      this.members.forEach((member, id) => {
+        if (now - member.lastHeartbeat > this.idleTimeoutMs) {
+          toRemove.push(id);
+        }
+      });
+
+      toRemove.forEach(id => {
+        const member = this.members.get(id);
+        console.log(`⏰ [${this.roomId}] [${id}] PEER_TIMEOUT - no heartbeat for ${Math.round(this.idleTimeoutMs/1000)}s`);
+        if (member) {
+          this.removeMemberByWebSocket(member.websocket);
+        }
+      });
+    }, 5000);
+  }
+
+  stopHeartbeatMonitoring() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+  }
+
+  broadcast(message) {
+    this.members.forEach((member, id) => {
+      try {
+        member.websocket.send(message);
+      } catch (err) {
+        this.removeMember(id);
       }
     });
   }

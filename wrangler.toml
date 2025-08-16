@@ -1,15 +1,28 @@
 name = "gokarts-multiplayer"
-main = "cloudflare-worker.js"
+main = "cloudflare/worker.ts"
 compatibility_date = "2023-12-01"
 
 [durable_objects]
 bindings = [
-  { name = "GAME_ROOMS", class_name = "GameRoom" }
+  { name = "MATCHMAKER", class_name = "MatchmakerDO" },
+  { name = "ROOM_REGISTRY", class_name = "RoomRegistryDO" },
+  { name = "ROOM_DO", class_name = "RoomDO" }
 ]
 
 [[migrations]]
 tag = "v1"
-new_classes = ["GameRoom"]
+new_classes = ["MatchmakerDO", "RoomRegistryDO", "RoomDO"]
+
+[vars]
+ROOM_SIZE = "5"
+ALLOWED_ORIGINS = "https://go-karts.vercel.app,https://*.vercel.app,https://gokarts.online"
+QUEUE_TTL_MS = "20000"
+ROOM_HEARTBEAT_MS = "30000"
+
+[env.dev]
+name = "gokarts-multiplayer-dev"
+[env.dev.vars]
+ROOM_SIZE = "2"
 
 [env.production]
 name = "gokarts-multiplayer-prod"

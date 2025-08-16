@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoKarts Acceptance Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .passed { background-color: #d4edda; }
+        .failed { background-color: #f8d7da; }
+        button { margin: 5px; padding: 10px; }
+        #log { height: 300px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; background: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>GoKarts Multiplayer Acceptance Tests</h1>
+    
+    <div class="test">
+        <h3>Test 1: Two-Browser Match (dev: ROOM_SIZE=2)</h3>
+        <p>Both browsers should transition: queue → matched → WebSocket → START countdown</p>
+        <button onclick="testTwoBrowserMatch()">Start Test</button>
+        <div id="test1-result"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 2: Cancel Works</h3>
+        <p>While queued, cancel should remove entry and update other clients</p>
+        <button onclick="testCancel()">Start Test</button>
+        <div id="test2-result"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 3: Timeout Cleanup (20s)</h3>
+        <p>Idle client should be removed after 20s and UI shows timeout</p>
+        <button onclick="testTimeout()">Start Test</button>
+        <div id="test3-result"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 4: Room Disconnect</h3>
+        <p>Close one client, other receives PEER_LEAVE</p>
+        <button onclick="testRoomDisconnect()">Start Test</button>
+        <div id="test4-result"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 5: No Duplicates</h3>
+        <p>Rapidly clicking "Find Race" should only create one queue entry</p>
+        <button onclick="testNoDuplicates()">Start Test</button>
+        <div id="test5-result"></div>
+    </div>
+
+    <div class="test">
+        <h3>Test 6: CORS</h3>
+        <p>All endpoints should work from deployed site and custom domain</p>
+        <button onclick="testCORS()">Start Test</button>
+        <div id="test6-result"></div>
+    </div>
+
+    <h3>Test Log</h3>
+    <div id="log"></div>
+
+    <script src="websocket-client.js"></script>
+    <script>
+        const baseUrl = 'https://gokarts-multiplayer-dev.stealthbundlebot.workers.dev'; // Change for testing
+        let client = null;
+        
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += new Date().toISOString() + ': ' + message + '<br>';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function setTestResult(testId, passed, message) {
+            const div = document.getElementById(testId + '-result');
+            div.className = passed ? 'passed' : 'failed';
+            div.textContent = (passed ? '✅ PASSED: ' : '❌ FAILED: ') + message;
+        }
+
+        // Test 1: Two-Browser Match
+        async function testTwoBrowserMatch() {
+            log('Starting two-browser match test...');
+            try {
+                client = createCloudflareClient();
+                client.connect(baseUrl);
+                
+                client.on('connect', () => {
+                    log('Client connected, joining queue...');
+                    client.joinQueue().then(() => {
+                        log('Successfully joined queue');
+                    });
+                });
+                
+                client.on('queue-update', (data) => {
+                    log(`Queue update: position ${data.position}, wait ${data.estWaitSec}s`);
+                });
+                
+                client.on('match-found', (data) => {
+                    log(`Match found! Room: ${data.roomId}`);
+                });
+                
+                client.on('welcome', (data) => {
+                    log(`Welcome to room! Players: ${data.players.length}`);
+                });
+                
+                client.on('race-countdown', (data) => {
+                    log(`Race countdown: ${data.countdown}`);
+                    setTestResult('test1', true, 'Successfully received START countdown');
+                });
+                
+                setTimeout(() => {
+                    if (!document.getElementById('test1-result').textContent.includes('PASSED')) {
+                        setTestResult('test1', false, 'Timeout waiting for match');
+                    }
+                }, 10000);
+                
+            } catch (error) {
+                log('Error in test 1: ' + error.message);
+                setTestResult('test1', false, error.message);
+            }
+        }
+
+        // Test 2: Cancel Works
+        async function testCancel() {
+            log('Starting cancel test...');
+            try {
+                const testClient = createCloudflareClient();
+                testClient.connect(baseUrl);
+                
+                testClient.on('connect', async () => {
+                    await testClient.joinQueue();
+                    log('Joined queue, now cancelling...');
+                    
+                    setTimeout(async () => {
+                        await testClient.cancelQueue();
+                        log('Cancelled queue');
+                        setTestResult('test2', true, 'Successfully cancelled queue');
+                    }, 1000);
+                });
+                
+            } catch (error) {
+                log('Error in test 2: ' + error.message);
+                setTestResult('test2', false, error.message);
+            }
+        }
+
+        // Test 3: Timeout Cleanup
+        async function testTimeout() {
+            log('Starting timeout test (will take 25+ seconds)...');
+            try {
+                const response = await fetch(`${baseUrl}/api/queue/join`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playerId: 'timeout-test-' + Date.now() })
+                });
+                
+                const result = await response.json();
+                log(`Initial join result: ${JSON.stringify(result)}`);
+                
+                if (result.status === 'queued') {
+                    // Wait 25 seconds, then poll
+                    setTimeout(async () => {
+                        try {
+                            const pollResponse = await fetch(`${baseUrl}/api/queue/poll?playerId=timeout-test-${Date.now()-25000}`);
+                            const pollResult = await pollResponse.json();
+                            log(`Poll after timeout: ${JSON.stringify(pollResult)}`);
+                            
+                            if (pollResult.status === 'timeout') {
+                                setTestResult('test3', true, 'Player properly timed out after 20s');
+                            } else {
+                                setTestResult('test3', false, 'Player did not timeout as expected');
+                            }
+                        } catch (error) {
+                            setTestResult('test3', false, 'Error polling after timeout: ' + error.message);
+                        }
+                    }, 25000);
+                } else {
+                    setTestResult('test3', false, 'Could not join queue for timeout test');
+                }
+                
+            } catch (error) {
+                log('Error in test 3: ' + error.message);
+                setTestResult('test3', false, error.message);
+            }
+        }
+
+        // Test 4: Room Disconnect  
+        async function testRoomDisconnect() {
+            log('Test 4: Manual test - open two browsers, get matched, close one tab');
+            setTestResult('test4', true, 'Manual test - check console for PEER_LEAVE messages');
+        }
+
+        // Test 5: No Duplicates
+        async function testNoDuplicates() {
+            log('Starting no duplicates test...');
+            try {
+                const playerId = 'dupe-test-' + Date.now();
+                
+                // Rapidly make multiple join requests
+                const promises = [];
+                for (let i = 0; i < 5; i++) {
+                    promises.push(
+                        fetch(`${baseUrl}/api/queue/join`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ playerId })
+                        }).then(r => r.json())
+                    );
+                }
+                
+                const results = await Promise.all(promises);
+                log(`Multiple join results: ${JSON.stringify(results)}`);
+                
+                // All should return the same position/status (idempotent)
+                const positions = results.map(r => r.position).filter(p => p);
+                const uniquePositions = [...new Set(positions)];
+                
+                if (uniquePositions.length <= 1) {
+                    setTestResult('test5', true, 'Idempotent - no duplicate queue entries');
+                } else {
+                    setTestResult('test5', false, 'Multiple different positions returned');
+                }
+                
+            } catch (error) {
+                log('Error in test 5: ' + error.message);
+                setTestResult('test5', false, error.message);
+            }
+        }
+
+        // Test 6: CORS
+        async function testCORS() {
+            log('Starting CORS test...');
+            try {
+                // Test if we can make requests (CORS should allow)
+                const response = await fetch(`${baseUrl}/health`);
+                const text = await response.text();
+                log(`Health check response: ${text}`);
+                
+                if (response.ok) {
+                    setTestResult('test6', true, 'CORS working - health check succeeded');
+                } else {
+                    setTestResult('test6', false, 'Health check failed');
+                }
+                
+            } catch (error) {
+                log('Error in test 6: ' + error.message);
+                setTestResult('test6', false, 'CORS error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -89,12 +89,134 @@ The server will start on `http://localhost:3000`
 
 ## 🌐 Multiplayer Architecture
 
-- **Express.js** server with Socket.io for real-time communication
-- **Room-based matchmaking** - automatically matches 2-5 players
+- **Cloudflare Workers** with **Durable Objects** for scalable real-time communication
+- **REST + WebSocket** hybrid API for queue management and room coordination
+- **Authoritative matchmaking** with proper queue management and timeouts
+- **Room-based matches** - automatically groups 2-5 players with AI bots
 - **Global leaderboard** with persistent JSON storage
-- **20 FPS position synchronization** for smooth gameplay
-- **Server-side validation** for anti-cheat protection
 - **Fallback offline mode** when server unavailable
+
+## 🚀 Multiplayer Quickstart
+
+### Environment Variables
+
+Configure these environment variables in your deployment:
+
+```bash
+# Room Configuration
+ROOM_SIZE=5                    # Production: 5 players, Dev: 2 players
+QUEUE_TTL_MS=20000            # 20s queue timeout
+ROOM_HEARTBEAT_MS=30000       # 30s room heartbeat timeout
+
+# CORS Origins (comma-separated)
+ALLOWED_ORIGINS=https://go-karts.vercel.app,https://*.vercel.app,https://gokarts.online
+
+# Environment
+ENVIRONMENT=development        # Use 'production' to disable debug endpoints
+```
+
+### Local Development Setup
+
+1. **Start the Cloudflare Worker (Backend)**:
+```bash
+cd cloudflare
+wrangler dev --env dev
+# This starts the worker with ROOM_SIZE=2 for easier testing
+```
+
+2. **Start the Frontend (in a separate terminal)**:
+```bash
+# If using Vite
+npm run dev
+
+# Or serve the HTML files directly
+python -m http.server 8000
+# Then open http://localhost:8000
+```
+
+3. **Update Frontend URL**: In `websocket-client.js`, update the base URL:
+```javascript
+const baseUrl = 'http://localhost:8787'; // Wrangler dev default
+```
+
+### Acceptance Tests
+
+Run these six tests to verify the multiplayer system works:
+
+1. **Two-Browser Match (ROOM_SIZE=2)**:
+   - Open two different browsers
+   - Both click "Find Race"
+   - Within 3s: queue → matched → WebSocket connected → START countdown
+
+2. **Cancel Works**:
+   - One client joins queue
+   - Click "Cancel" while queued
+   - Server removes entry, second client updates position
+
+3. **Timeout Cleanup (20s)**:
+   - Join queue, then leave browser idle
+   - After 20s: client removed, UI shows "Timed out"
+
+4. **Room Disconnect**:
+   - Get matched into room, close one browser tab
+   - Other client receives PEER_LEAVE message
+
+5. **No Duplicates**:
+   - Rapidly click "Find Race" multiple times
+   - Only one queue entry exists per playerId (idempotent)
+
+6. **CORS**:
+   - Test from deployed Vercel site and custom domain
+   - All endpoints work without CORS errors
+
+### Debug Tools
+
+Access debug information (dev-only):
+```bash
+curl http://localhost:8787/api/debug/state
+```
+
+Returns:
+```json
+{
+  "queueCount": 2,
+  "queuedPlayers": ["player1", "player2"],
+  "roomSize": 2,
+  "ttlMs": 20000
+}
+```
+
+### Log Monitoring
+
+All log lines use greppable prefixes for easy debugging:
+
+```bash
+# Monitor matchmaking
+grep "MM:" worker-logs.txt
+
+# Monitor room events  
+grep "ROOM:" worker-logs.txt
+
+# Find specific player activity
+grep "player=abc123" worker-logs.txt
+```
+
+**Log Examples**:
+- `MM:ENQUEUE player=abc123 queueSize=2`
+- `MM:MATCH room=room_xyz size=2 players=abc123,def456`
+- `ROOM:JOIN room=room_xyz player=abc123 members=2/5`
+- `ROOM:START room=room_xyz players=2 countdown=3`
+
+### Deployment
+
+1. **Deploy Worker**:
+```bash
+wrangler deploy --env production
+```
+
+2. **Update Frontend**: Point to production worker URL in `websocket-client.js`
+
+3. **Verify**: Run acceptance tests against production endpoints
 
 ## 🎯 Game Features
 

@@ -89,7 +89,7 @@ class GoKartsGame {
         if (typeof createCloudflareClient !== 'undefined') {
             console.log('🚀 Trying Cloudflare Workers connection...');
             this.socket = createCloudflareClient();
-            this.socket.connect('wss://gokarts-multiplayer.stealthbundlebot.workers.dev');
+            this.socket.connect('https://gokarts-multiplayer.stealthbundlebot.workers.dev');
             this.setupMultiplayerEvents();
         } else if (typeof io !== 'undefined') {
             console.log('📡 Trying Socket.io connection...');
@@ -107,9 +107,8 @@ class GoKartsGame {
         if (!this.socket) return;
         
         this.socket.on('connect', () => {
-            console.log(`✅ Connected to multiplayer server! Player ID: ${this.socket.id}`);
-            alert(`✅ Connected! Player ID: ${this.socket.id}`); // Debug alert
-            this.playerId = this.socket.id;
+            console.log(`✅ Connected! Player ID: ${this.socket.playerId}`);
+            this.playerId = this.socket.playerId;
             this.isMultiplayer = true;
             this.updateConnectionStatus(true);
             
@@ -121,7 +120,6 @@ class GoKartsGame {
             console.log('❌ Disconnected from server');
             this.isMultiplayer = false;
             this.updateConnectionStatus(false);
-            // Show user they're offline
             if (this.currentScreen === 'waitingScreen') {
                 this.showScreen('mainMenu');
                 alert('Lost connection to server. Please refresh and try again.');
@@ -130,26 +128,74 @@ class GoKartsGame {
         
         this.socket.on('connect_error', (error) => {
             console.error('❌ Connection error:', error);
-            alert(`❌ Connection failed: ${error}`); // Debug alert
             this.isMultiplayer = false;
             this.updateConnectionStatus(false);
         });
         
-        this.socket.on('room-update', (data) => {
-            this.roomData = data;
-            this.updateWaitingScreen(data);
+        // Handle queue updates
+        this.socket.on('queue-update', (data) => {
+            console.log(`🏁 Queue position: ${data.position}, wait: ${data.estWaitSec}s`);
+            this.updateQueueScreen(data);
         });
         
-        this.socket.on('race-start', (data) => {
-            console.log(`🏁 Race starting with ${data.players.length} players:`, data.players);
-            this.startMultiplayerRace(data);
+        // Handle match found
+        this.socket.on('match-found', (data) => {
+            console.log(`🎯 Match found! Room: ${data.roomId}`);
+            this.showTransitionToRoom();
+        });
+        
+        // Handle room connection
+        this.socket.on('room-connected', () => {
+            console.log('✅ Connected to race room!');
+        });
+        
+        // Handle room welcome
+        this.socket.on('welcome', (data) => {
+            console.log(`🎉 Welcome to room! Players: ${data.players.length}`);
+            this.updateWaitingScreenText('In Race Room', `Players: ${data.players.length}/5`);
+        });
+        
+        // Handle race countdown
+        this.socket.on('race-countdown', (data) => {
+            console.log(`🚀 Race starting! Countdown: ${data.countdown}`);
+            this.startMultiplayerRace({ players: [], startTime: Date.now() + (data.countdown * 1000) });
+        });
+        
+        // Handle peer events
+        this.socket.on('peer-join', (data) => {
+            console.log(`👤 Player ${data.playerId} joined room`);
+        });
+        
+        this.socket.on('peer-leave', (data) => {
+            console.log(`👋 Player ${data.playerId} left room`);
+        });
+        
+        this.socket.on('peer-state', (data) => {
+            this.updateRemotePlayerPosition({
+                playerId: data.playerId,
+                ...data.pos
+            });
+        });
+        
+        // Handle queue timeout
+        this.socket.on('queue-timeout', () => {
+            console.log('⏰ Queue timeout - resetting UI');
+            this.showScreen('mainMenu');
+            this.gameState = 'menu';
+            this.showToast('Queue timeout. Please try again.', 'error');
+        });
+        
+        // Handle connection lost during room wait
+        this.socket.on('connection-lost-requeue', () => {
+            console.log('🔄 Connection lost, attempting to re-queue...');
+            this.showToast('Connection lost, re-queuing...', 'warning');
+            // Automatically try to rejoin queue
+            setTimeout(() => {
+                this.startMatchmaking();
+            }, 1000);
         });
         
         this.socket.on('player-position', (data) => {
-            // Debug: Log bot positions occasionally
-            if (data.playerId.startsWith('bot_') && Math.random() < 0.01) {
-                console.log('🤖 Bot position update:', data.playerId, data.x, data.y);
-            }
             this.updateRemotePlayerPosition(data);
         });
         
@@ -361,7 +407,7 @@ class GoKartsGame {
             const canvasWidth = this.canvas.width || 1200;
             const canvasHeight = this.canvas.height || 800;
             
-            this.socket.emit('player-update', {
+            this.socket.sendGameState({
                 x: this.localPlayer.x / canvasWidth,
                 y: this.localPlayer.y / canvasHeight,
                 angle: this.localPlayer.angle,
@@ -652,8 +698,15 @@ class GoKartsGame {
         this.gameState = 'waiting';
         
         if (this.isMultiplayer && this.socket) {
-            // Join multiplayer matchmaking
-            this.socket.emit('find-match');
+            // Join matchmaking queue using REST API
+            this.socket.joinQueue().catch(error => {
+                console.error('Failed to join queue:', error);
+                this.showScreen('mainMenu');
+                alert('Failed to join matchmaking queue. Please try again.');
+            });
+            
+            // Update UI to show queue status
+            this.updateWaitingScreenText('Finding match...', '⏳ Searching for players');
         } else {
             // Fallback to single player mode
             console.log('Starting offline race...');
@@ -665,10 +718,81 @@ class GoKartsGame {
     
     cancelMatchmaking() {
         if (this.socket) {
-            this.socket.emit('leave-room');
+            this.socket.cancelQueue();
         }
         this.showScreen('mainMenu');
         this.gameState = 'menu';
+    }
+    
+    updateQueueScreen(queueData) {
+        if (this.currentScreen === 'waitingScreen') {
+            const title = 'Finding Race...';
+            const subtitle = `Queue position: ${queueData.position} (Est. wait: ${queueData.estWaitSec}s)`;
+            this.updateWaitingScreenText(title, subtitle);
+        }
+    }
+    
+    showTransitionToRoom() {
+        if (this.currentScreen === 'waitingScreen') {
+            this.updateWaitingScreenText('Match Found!', '🎯 Connecting to race room...');
+        }
+    }
+    
+    updateWaitingScreenText(title, subtitle) {
+        const titleElement = document.querySelector('#waitingScreen h2');
+        const subtitleElement = document.querySelector('#waitingScreen p');
+        
+        if (titleElement) titleElement.textContent = title;
+        if (subtitleElement) subtitleElement.textContent = subtitle;
+    }
+    
+    showToast(message, type = 'info') {
+        // Create toast element if it doesn't exist
+        let toast = document.getElementById('game-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'game-toast';
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 10px 20px;
+                border-radius: 5px;
+                color: white;
+                font-weight: bold;
+                z-index: 10000;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            `;
+            document.body.appendChild(toast);
+        }
+        
+        // Set message and style based on type
+        toast.textContent = message;
+        toast.className = type;
+        
+        switch (type) {
+            case 'error':
+                toast.style.backgroundColor = '#dc3545';
+                break;
+            case 'warning':
+                toast.style.backgroundColor = '#ffc107';
+                toast.style.color = '#000';
+                break;
+            case 'success':
+                toast.style.backgroundColor = '#28a745';
+                break;
+            default:
+                toast.style.backgroundColor = '#007bff';
+        }
+        
+        // Show toast
+        toast.style.opacity = '1';
+        
+        // Hide after 3 seconds
+        setTimeout(() => {
+            toast.style.opacity = '0';
+        }, 3000);
     }
     
     startRace() {

@@ -12,7 +12,9 @@
       "Bash(rm:*)",
       "Bash(touch:*)",
       "Bash(wrangler deploy:*)",
-      "Bash(wrangler tail:*)"
+      "Bash(wrangler tail:*)",
+      "Bash(curl:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []

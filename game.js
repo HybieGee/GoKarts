@@ -384,8 +384,8 @@ class GoKartsGame {
                 angle: playerData.position.angle,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
-                maxSpeed: 2,  // Much slower for testing
-                acceleration: 0.15,  // Much slower acceleration
+                maxSpeed: 1,  // EXTREMELY slow for testing
+                acceleration: 0.08,  // EXTREMELY slow acceleration
                 deceleration: 0.6,
                 friction: 0.85,
                 turnSpeed: 0.08,

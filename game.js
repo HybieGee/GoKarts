@@ -10,6 +10,17 @@ class GoKartsGame {
         this.playerImages = [];
         this.loadPlayerAssets();
         
+        // Track image
+        this.trackImage = new Image();
+        this.trackImage.onload = () => {
+            console.log('Track image loaded successfully');
+        };
+        this.trackImage.onerror = () => {
+            console.log('Could not load track image, using fallback design');
+        };
+        // Try to load custom track image
+        this.trackImage.src = 'track.png';
+        
         // Game data
         this.players = [];
         this.localPlayer = null;
@@ -123,18 +134,29 @@ class GoKartsGame {
         // Create 5 players (including local player)
         this.players = [];
         
+        // Starting positions at the start/finish line
+        const startPositions = [
+            { x: 150, y: 180 },
+            { x: 150, y: 200 },
+            { x: 150, y: 220 },
+            { x: 130, y: 190 },
+            { x: 130, y: 210 }
+        ];
+        
         // Local player (always player 1)
         this.localPlayer = {
             id: 1,
             name: 'You',
-            x: 100,
-            y: 400,
-            angle: 0,
+            x: startPositions[0].x,
+            y: startPositions[0].y,
+            angle: 0.3, // Slight angle to start turning into track
+            velocity: { x: 0, y: 0 },
             speed: 0,
-            maxSpeed: 5,
-            acceleration: 0.3,
-            friction: 0.9,
-            turnSpeed: 0.05,
+            maxSpeed: 6,
+            acceleration: 0.4,
+            deceleration: 0.6,
+            friction: 0.85,
+            turnSpeed: 0.08,
             lapCount: 1,
             position: 1,
             isLocal: true,
@@ -147,19 +169,21 @@ class GoKartsGame {
             this.players.push({
                 id: i + 1,
                 name: `Player ${i + 1}`,
-                x: 100 + (i * 50),
-                y: 400 + (i * 20),
-                angle: 0,
+                x: startPositions[i].x,
+                y: startPositions[i].y,
+                angle: 0.3 + (Math.random() - 0.5) * 0.2,
+                velocity: { x: 0, y: 0 },
                 speed: 0,
                 maxSpeed: 4 + Math.random(),
                 acceleration: 0.25 + Math.random() * 0.1,
-                friction: 0.9,
-                turnSpeed: 0.04 + Math.random() * 0.02,
+                deceleration: 0.5,
+                friction: 0.85,
+                turnSpeed: 0.06 + Math.random() * 0.02,
                 lapCount: 1,
                 position: i + 1,
                 isLocal: false,
                 image: this.playerImages[i],
-                aiTarget: { x: 600, y: 200 }
+                aiTarget: { x: 300, y: 150 } // First turn target
             });
         }
         
@@ -199,31 +223,57 @@ class GoKartsGame {
     
     updatePlayer(player) {
         if (player.isLocal) {
-            // Handle local player input
+            // Handle local player input with proper kart physics
+            let accelerating = false;
+            let braking = false;
+            let turning = 0;
+            
+            // Forward/Backward controls
             if (this.keys['w'] || this.keys['ArrowUp']) {
-                player.speed = Math.min(player.speed + player.acceleration, player.maxSpeed);
+                player.speed += player.acceleration;
+                accelerating = true;
+            } else if (this.keys['s'] || this.keys['ArrowDown']) {
+                player.speed -= player.deceleration;
+                braking = true;
             }
-            if (this.keys['s'] || this.keys['ArrowDown']) {
-                player.speed = Math.max(player.speed - player.acceleration, -player.maxSpeed * 0.5);
+            
+            // Turning controls (only work when moving)
+            if ((this.keys['a'] || this.keys['ArrowLeft']) && Math.abs(player.speed) > 0.1) {
+                turning = -1;
             }
-            if (this.keys['a'] || this.keys['ArrowLeft']) {
-                player.angle -= player.turnSpeed * Math.abs(player.speed);
+            if ((this.keys['d'] || this.keys['ArrowRight']) && Math.abs(player.speed) > 0.1) {
+                turning = 1;
             }
-            if (this.keys['d'] || this.keys['ArrowRight']) {
-                player.angle += player.turnSpeed * Math.abs(player.speed);
+            
+            // Apply turning based on speed (faster = sharper turns)
+            if (turning !== 0) {
+                const turnAmount = player.turnSpeed * Math.abs(player.speed) / player.maxSpeed;
+                player.angle += turning * turnAmount;
+            }
+            
+            // Speed limits
+            player.speed = Math.max(-player.maxSpeed * 0.6, Math.min(player.maxSpeed, player.speed));
+            
+            // Apply friction when not accelerating
+            if (!accelerating && !braking) {
+                player.speed *= player.friction;
+                if (Math.abs(player.speed) < 0.1) {
+                    player.speed = 0;
+                }
             }
         }
         
-        // Apply friction
-        player.speed *= player.friction;
+        // Calculate velocity components based on angle and speed
+        player.velocity.x = Math.cos(player.angle) * player.speed;
+        player.velocity.y = Math.sin(player.angle) * player.speed;
         
-        // Update position
-        player.x += Math.cos(player.angle) * player.speed;
-        player.y += Math.sin(player.angle) * player.speed;
+        // Update position using velocity
+        player.x += player.velocity.x;
+        player.y += player.velocity.y;
         
         // Keep player on screen (simple boundary)
-        player.x = Math.max(20, Math.min(this.canvas.width - 20, player.x));
-        player.y = Math.max(20, Math.min(this.canvas.height - 20, player.y));
+        player.x = Math.max(30, Math.min(this.canvas.width - 30, player.x));
+        player.y = Math.max(30, Math.min(this.canvas.height - 30, player.y));
     }
     
     updateAIPlayer(player) {
@@ -341,11 +391,11 @@ class GoKartsGame {
     }
     
     render() {
-        // Clear canvas
-        this.ctx.fillStyle = '#2a2a2a';
+        // Clear canvas with grass background
+        this.ctx.fillStyle = '#4a7c59';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Draw simple track outline
+        // Draw track (custom image or fallback)
         this.drawTrack();
         
         // Draw players
@@ -355,23 +405,63 @@ class GoKartsGame {
     }
     
     drawTrack() {
-        this.ctx.strokeStyle = '#555';
-        this.ctx.lineWidth = 4;
-        this.ctx.setLineDash([10, 10]);
+        if (this.trackImage && this.trackImage.complete && this.trackImage.naturalWidth > 0) {
+            // Draw the custom track image scaled to canvas
+            this.ctx.drawImage(this.trackImage, 0, 0, this.canvas.width, this.canvas.height);
+        } else {
+            // Fallback: Create S-shaped track similar to your design
+            this.ctx.strokeStyle = '#333';
+            this.ctx.lineWidth = 120;
+            this.ctx.lineCap = 'round';
+            this.ctx.lineJoin = 'round';
+            
+            // Draw track path
+            this.ctx.beginPath();
+            this.ctx.moveTo(100, 200);
+            this.ctx.bezierCurveTo(300, 100, 500, 300, 700, 200);
+            this.ctx.bezierCurveTo(900, 100, 1100, 300, 1100, 500);
+            this.ctx.bezierCurveTo(1100, 700, 900, 700, 700, 600);
+            this.ctx.bezierCurveTo(500, 500, 300, 700, 100, 600);
+            this.ctx.closePath();
+            this.ctx.stroke();
+            
+            // Draw track borders with checkered pattern
+            this.drawCheckeredBorder();
+        }
         
-        // Simple oval track
+        // Always draw start/finish line
+        this.drawStartFinishLine();
+    }
+    
+    drawCheckeredBorder() {
+        // This would create a checkered border pattern
+        // For now, simple red/white stripes
+        this.ctx.strokeStyle = '#ff0000';
+        this.ctx.lineWidth = 8;
+        this.ctx.setLineDash([20, 20]);
+        
         this.ctx.beginPath();
-        this.ctx.ellipse(this.canvas.width / 2, this.canvas.height / 2, 400, 250, 0, 0, Math.PI * 2);
+        this.ctx.moveTo(100, 200);
+        this.ctx.bezierCurveTo(300, 100, 500, 300, 700, 200);
+        this.ctx.bezierCurveTo(900, 100, 1100, 300, 1100, 500);
+        this.ctx.bezierCurveTo(1100, 700, 900, 700, 700, 600);
+        this.ctx.bezierCurveTo(500, 500, 300, 700, 100, 600);
+        this.ctx.closePath();
         this.ctx.stroke();
         
-        // Start/finish line
         this.ctx.setLineDash([]);
+    }
+    
+    drawStartFinishLine() {
+        // Start/finish line
         this.ctx.strokeStyle = '#ffd700';
-        this.ctx.lineWidth = 6;
+        this.ctx.lineWidth = 8;
+        this.ctx.setLineDash([15, 15]);
         this.ctx.beginPath();
-        this.ctx.moveTo(this.canvas.width - 50, this.canvas.height / 2 - 100);
-        this.ctx.lineTo(this.canvas.width - 50, this.canvas.height / 2 + 100);
+        this.ctx.moveTo(80, 150);
+        this.ctx.lineTo(120, 250);
         this.ctx.stroke();
+        this.ctx.setLineDash([]);
     }
     
     drawPlayer(player) {

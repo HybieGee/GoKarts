@@ -29,17 +29,17 @@ class GoKartsGame {
         this.raceStartTime = 0;
         this.raceFinished = false;
         
-        // Checkpoint system - bars across track at your marked positions
+        // Checkpoint system - bars across track at correct positions
         this.checkpoints = [
-            { x1: 900, y1: 620, x2: 980, y2: 680, width: 100 },  // Checkpoint 1 (after start)
-            { x1: 850, y1: 520, x2: 930, y2: 480, width: 100 },  // Checkpoint 2
-            { x1: 300, y1: 550, x2: 380, y2: 610, width: 100 },  // Checkpoint 3
-            { x1: 250, y1: 350, x2: 330, y2: 310, width: 100 },  // Checkpoint 4
-            { x1: 400, y1: 200, x2: 480, y2: 240, width: 100 },  // Checkpoint 5
-            { x1: 550, y1: 350, x2: 630, y2: 310, width: 100 },  // Checkpoint 6
-            { x1: 700, y1: 450, x2: 780, y2: 490, width: 100 },  // Checkpoint 7
-            { x1: 850, y1: 250, x2: 930, y2: 210, width: 100 },  // Checkpoint 8
-            { x1: 1000, y1: 350, x2: 1080, y2: 390, width: 100 } // Checkpoint 9
+            { x1: 960, y1: 600, x2: 960, y2: 680, width: 80 },   // Checkpoint 1 (after start, vertical)
+            { x1: 900, y1: 480, x2: 840, y2: 520, width: 80 },   // Checkpoint 2 (diagonal)
+            { x1: 300, y1: 580, x2: 380, y2: 580, width: 80 },   // Checkpoint 3 (horizontal bottom left)
+            { x1: 250, y1: 280, x2: 330, y2: 280, width: 80 },   // Checkpoint 4 (horizontal top left)
+            { x1: 480, y1: 180, x2: 480, y2: 260, width: 80 },   // Checkpoint 5 (vertical top)
+            { x1: 630, y1: 320, x2: 550, y2: 320, width: 80 },   // Checkpoint 6 (horizontal middle)
+            { x1: 760, y1: 440, x2: 760, y2: 520, width: 80 },   // Checkpoint 7 (vertical middle right)
+            { x1: 900, y1: 200, x2: 900, y2: 280, width: 80 },   // Checkpoint 8 (vertical top right)
+            { x1: 1050, y1: 380, x2: 970, y2: 380, width: 80 }   // Checkpoint 9 (horizontal right)
         ];
         
         // Leaderboard data (stored locally for now)
@@ -147,13 +147,13 @@ class GoKartsGame {
         // Create 5 players (including local player)
         this.players = [];
         
-        // Starting positions at the checkered finish line (bottom right)
+        // Starting positions at the checkered finish line (bottom right of track)
         const startPositions = [
-            { x: 1050, y: 650 },  // Front row center
-            { x: 1030, y: 630 },  // Front row left
-            { x: 1070, y: 630 },  // Front row right
-            { x: 1010, y: 610 },  // Back row left
-            { x: 1090, y: 610 }   // Back row right
+            { x: 1080, y: 630 },  // Front row center
+            { x: 1060, y: 610 },  // Front row left
+            { x: 1100, y: 610 },  // Front row right
+            { x: 1040, y: 590 },  // Back row left
+            { x: 1120, y: 590 }   // Back row right
         ];
         
         // Local player (always player 1)
@@ -388,10 +388,10 @@ class GoKartsGame {
     checkRaceCompletion() {
         // Check if players cross start/finish line with all checkpoints completed
         this.players.forEach(player => {
-            // Start/finish line at checkered flag area
+            // Start/finish line at checkered flag area (matches visual checkered flag)
             const crossed = this.lineIntersectsCircle(
-                1000, 650,  // Start/finish line coordinates
-                1100, 650,
+                1020, 630,  // Start/finish line coordinates
+                1120, 630,
                 player.x, player.y, 30
             );
             
@@ -537,9 +537,9 @@ class GoKartsGame {
         this.ctx.fillStyle = 'black';
         this.ctx.lineWidth = 2;
         
-        // Draw checkered pattern
-        const startX = 1000;
-        const startY = 630;
+        // Draw checkered pattern at bottom right of track
+        const startX = 1020;
+        const startY = 610;
         const squareSize = 10;
         const rows = 4;
         const cols = 10;

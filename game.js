@@ -19,7 +19,7 @@ class GoKartsGame {
             console.log('Could not load track image, using fallback design');
         };
         // Try to load custom track image
-        this.trackImage.src = 'track.png';
+        this.trackImage.src = 'map.png';
         
         // Game data
         this.players = [];
@@ -223,12 +223,11 @@ class GoKartsGame {
     
     updatePlayer(player) {
         if (player.isLocal) {
-            // Handle local player input with proper kart physics
+            // Handle local player input - relative to kart's front
             let accelerating = false;
             let braking = false;
-            let turning = 0;
             
-            // Forward/Backward controls
+            // W/S controls speed (forward/backward relative to kart's front)
             if (this.keys['w'] || this.keys['ArrowUp']) {
                 player.speed += player.acceleration;
                 accelerating = true;
@@ -237,18 +236,14 @@ class GoKartsGame {
                 braking = true;
             }
             
-            // Turning controls (only work when moving)
-            if ((this.keys['a'] || this.keys['ArrowLeft']) && Math.abs(player.speed) > 0.1) {
-                turning = -1;
-            }
-            if ((this.keys['d'] || this.keys['ArrowRight']) && Math.abs(player.speed) > 0.1) {
-                turning = 1;
-            }
-            
-            // Apply turning based on speed (faster = sharper turns)
-            if (turning !== 0) {
-                const turnAmount = player.turnSpeed * Math.abs(player.speed) / player.maxSpeed;
-                player.angle += turning * turnAmount;
+            // A/D controls turning (only when moving)
+            if (Math.abs(player.speed) > 0.1) {
+                if (this.keys['a'] || this.keys['ArrowLeft']) {
+                    player.angle -= player.turnSpeed * Math.abs(player.speed) / player.maxSpeed;
+                }
+                if (this.keys['d'] || this.keys['ArrowRight']) {
+                    player.angle += player.turnSpeed * Math.abs(player.speed) / player.maxSpeed;
+                }
             }
             
             // Speed limits
@@ -263,15 +258,15 @@ class GoKartsGame {
             }
         }
         
-        // Calculate velocity components based on angle and speed
+        // Move in the direction the kart is facing
         player.velocity.x = Math.cos(player.angle) * player.speed;
         player.velocity.y = Math.sin(player.angle) * player.speed;
         
-        // Update position using velocity
+        // Update position
         player.x += player.velocity.x;
         player.y += player.velocity.y;
         
-        // Keep player on screen (simple boundary)
+        // Keep player on screen
         player.x = Math.max(30, Math.min(this.canvas.width - 30, player.x));
         player.y = Math.max(30, Math.min(this.canvas.height - 30, player.y));
     }

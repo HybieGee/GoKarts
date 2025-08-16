@@ -33,7 +33,7 @@ bindings = [
   { name = "ROOM_DO", class_name = "RoomDO" }
 ]
 [env.production.vars]
-ROOM_SIZE = "5"
+ROOM_SIZE = "2"
 ALLOWED_ORIGINS = "https://go-karts.vercel.app,https://*.vercel.app,https://gokarts.online"
 QUEUE_TTL_MS = "20000"
 ROOM_HEARTBEAT_MS = "30000"

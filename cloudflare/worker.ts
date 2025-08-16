@@ -19,9 +19,13 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     
-    // CORS headers
+    // CORS headers - dynamically set origin
+    const origin = request.headers.get('Origin');
+    const allowedOrigins = (env.ALLOWED_ORIGINS || '*').split(',');
+    const allowOrigin = allowedOrigins.includes(origin || '') ? origin : (env.ALLOWED_ORIGINS ? allowedOrigins[0] : '*');
+    
     const corsHeaders = {
-      'Access-Control-Allow-Origin': env.ALLOWED_ORIGINS || '*',
+      'Access-Control-Allow-Origin': allowOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     };

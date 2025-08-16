@@ -229,7 +229,15 @@
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Try to load Socket.io, but don't fail if it's not available (for static hosting)
+        const script = document.createElement('script');
+        script.src = '/socket.io/socket.io.js';
+        script.onerror = function() {
+            console.log('Socket.io not available - running in offline mode');
+        };
+        document.head.appendChild(script);
+    </script>
     <script src="config.js"></script>
     <script src="game.js"></script>
 </body>

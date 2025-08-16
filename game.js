@@ -90,8 +90,10 @@ class GoKartsGame {
             this.setupMultiplayerEvents();
             console.log('📡 Socket.io loaded, initializing connection...');
         } else {
-            console.error('❌ Socket.io not loaded! Make sure server is running on port 3000');
-            console.log('💡 Try: npm start');
+            console.log('⚠️ Running in offline mode (no Socket.io server)');
+            console.log('🎮 You can still play with AI opponents!');
+            this.isMultiplayer = false;
+            this.updateConnectionStatus(false);
         }
     }
     
@@ -358,8 +360,9 @@ class GoKartsGame {
                 statusElement.textContent = '🟢 Online';
                 statusElement.style.color = '#4ecdc4';
             } else {
-                statusElement.textContent = '🔴 Offline';
+                statusElement.textContent = '🔴 Offline (AI Mode)';
                 statusElement.style.color = '#ff6b6b';
+                statusElement.title = 'Playing with AI opponents only';
             }
         }
     }
@@ -627,8 +630,8 @@ class GoKartsGame {
             angle: startAngle, // Face towards (0.72, 0.68)
             velocity: { x: 0, y: 0 },
             speed: 0,
-            maxSpeed: 6,
-            acceleration: 0.4,
+            maxSpeed: 4, // Reduced from 6 to balance with AI
+            acceleration: 0.3,
             deceleration: 0.6,
             friction: 0.85,
             turnSpeed: 0.08,
@@ -655,8 +658,8 @@ class GoKartsGame {
                 angle: startAngle,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
-                maxSpeed: 3 + Math.random() * 0.5,
-                acceleration: 0.2 + Math.random() * 0.05,
+                maxSpeed: 3.5 + Math.random() * 1, // Increased from 3-3.5 to 3.5-4.5
+                acceleration: 0.25 + Math.random() * 0.1,
                 deceleration: 0.5,
                 friction: 0.85,
                 turnSpeed: 0.06 + Math.random() * 0.02,

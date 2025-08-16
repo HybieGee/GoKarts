@@ -89,7 +89,7 @@ class GoKartsGame {
         if (typeof createCloudflareClient !== 'undefined') {
             console.log('🚀 Trying Cloudflare Workers connection...');
             this.socket = createCloudflareClient();
-            this.socket.connect('https://gokarts-multiplayer.stealthbundlebot.workers.dev');
+            this.socket.connect('https://gokarts-multiplayer-prod.stealthbundlebot.workers.dev');
             this.setupMultiplayerEvents();
         } else if (typeof io !== 'undefined') {
             console.log('📡 Trying Socket.io connection...');

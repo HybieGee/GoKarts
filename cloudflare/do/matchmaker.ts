@@ -208,7 +208,7 @@ export class MatchmakerDO {
     const result = await response.json() as any;
     
     // Convert roomWebSocketPath to full wsUrl
-    const baseUrl = 'wss://gokarts-multiplayer.stealthbundlebot.workers.dev';
+    const baseUrl = 'wss://gokarts-multiplayer-prod.stealthbundlebot.workers.dev';
     result.wsUrl = `${baseUrl}${result.roomWebSocketPath}`;
     
     return result;

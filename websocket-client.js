@@ -9,12 +9,12 @@ class CloudflareGameClient {
         this.maxReconnectAttempts = 5;
         this.currentState = 'disconnected'; // disconnected, queued, matched, in-room, racing
         this.roomId = null;
-        this.baseUrl = 'https://gokarts-multiplayer.stealthbundlebot.workers.dev';
+        this.baseUrl = 'https://gokarts-multiplayer-prod.stealthbundlebot.workers.dev';
         this.pollInterval = null;
         this.heartbeatInterval = null;
     }
 
-    connect(baseUrl = 'https://gokarts-multiplayer.stealthbundlebot.workers.dev') {
+    connect(baseUrl = 'https://gokarts-multiplayer-prod.stealthbundlebot.workers.dev') {
         this.baseUrl = baseUrl;
         this.playerId = this.generateId();
         this.isConnected = true;

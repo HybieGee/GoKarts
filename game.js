@@ -1,5 +1,9 @@
 // GoKarts Racing Game - Cache Bust v21 - 2024-12-16-21:00
 // EXTREME SPEED DEBUG: maxSpeed=1, acceleration=0.08
+const GAME_VERSION = 'v21-extreme-debug-2024-12-16-21:05';
+console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
+console.log('📊 EXPECTED PHYSICS: maxSpeed=1, acceleration=0.08');
+
 class GoKartsGame {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');

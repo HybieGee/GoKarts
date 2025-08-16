@@ -3,19 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GoKarts Racing</title>
+    <title>GoKarts Racing - Crypto Racing Game</title>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="app">
         <!-- Main Menu -->
         <div id="mainMenu" class="screen active">
-            <div class="menu-container">
-                <h1 class="game-title">🏎️ GoKarts Racing</h1>
-                <div class="menu-buttons">
-                    <button id="playBtn" class="menu-btn primary">PLAY</button>
-                    <button id="leaderboardBtn" class="menu-btn">LEADERBOARD</button>
-                    <button id="settingsBtn" class="menu-btn">SETTINGS</button>
+            <div class="hero-container">
+                <!-- Background Animation -->
+                <div class="bg-animation">
+                    <div class="racing-line"></div>
+                    <div class="racing-line"></div>
+                    <div class="racing-line"></div>
+                </div>
+                
+                <!-- Header -->
+                <header class="game-header">
+                    <h1 class="game-title" id="gameTitle">🏎️ GoKarts Racing</h1>
+                    <p class="game-tagline" id="gameTagline">Race to the Moon with Crypto Speed!</p>
+                </header>
+                
+                <!-- Main Content -->
+                <div class="hero-content">
+                    <div class="left-section">
+                        <div class="game-description">
+                            <p id="gameDescription">The ultimate crypto racing game where speed meets DeFi. Race, win, and earn tokens!</p>
+                        </div>
+                        
+                        <div class="features-list" id="featuresList">
+                            <!-- Features will be populated by JavaScript -->
+                        </div>
+                        
+                        <div class="menu-buttons">
+                            <button id="playBtn" class="menu-btn primary">
+                                <span class="btn-text">START RACING</span>
+                                <span class="btn-glow"></span>
+                            </button>
+                            <button id="leaderboardBtn" class="menu-btn secondary">
+                                <span class="btn-text">🏆 LEADERBOARD</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="right-section">
+                        <!-- Contract Info Card -->
+                        <div class="contract-card">
+                            <div class="card-header">
+                                <h3>Contract Info</h3>
+                                <div class="network-badge" id="networkBadge">Ethereum</div>
+                            </div>
+                            <div class="card-content">
+                                <div class="contract-field">
+                                    <label>Token:</label>
+                                    <span id="contractName">GoKarts Token</span>
+                                </div>
+                                <div class="contract-field">
+                                    <label>Symbol:</label>
+                                    <span id="contractSymbol">GOKART</span>
+                                </div>
+                                <div class="contract-field">
+                                    <label>Contract Address:</label>
+                                    <div class="address-container">
+                                        <span id="contractAddress" class="address-text">0x1234...5678</span>
+                                        <button id="copyAddressBtn" class="copy-btn" title="Copy to clipboard">📋</button>
+                                    </div>
+                                </div>
+                                <div class="contract-actions">
+                                    <button id="viewExplorerBtn" class="explorer-btn">View on Explorer</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Social Links -->
+                        <div class="social-links" id="socialLinks">
+                            <!-- Social links will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button id="settingsBtn" class="quick-btn">⚙️ Settings</button>
+                    <button id="aboutBtn" class="quick-btn">ℹ️ About</button>
                 </div>
             </div>
         </div>
@@ -73,6 +144,7 @@
         </div>
     </div>
 
+    <script src="config.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

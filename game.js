@@ -64,11 +64,125 @@ class GoKartsGame {
         
         
         this.initializeEventListeners();
+        this.populateLandingPage();
         this.showScreen('mainMenu');
         
         
     }
     
+    populateLandingPage() {
+        if (!window.GAME_CONFIG) return;
+        
+        const config = window.GAME_CONFIG;
+        
+        // Update branding
+        const gameTitle = document.getElementById('gameTitle');
+        const gameTagline = document.getElementById('gameTagline');
+        const gameDescription = document.getElementById('gameDescription');
+        
+        if (gameTitle) gameTitle.textContent = config.BRANDING.gameTitle;
+        if (gameTagline) gameTagline.textContent = config.BRANDING.tagline;
+        if (gameDescription) gameDescription.textContent = config.BRANDING.description;
+        
+        // Populate features list
+        const featuresList = document.getElementById('featuresList');
+        if (featuresList && config.FEATURES) {
+            featuresList.innerHTML = '';
+            config.FEATURES.forEach(feature => {
+                const featureItem = document.createElement('div');
+                featureItem.className = 'feature-item';
+                featureItem.textContent = feature;
+                featuresList.appendChild(featureItem);
+            });
+        }
+        
+        // Update contract information
+        const contractName = document.getElementById('contractName');
+        const contractSymbol = document.getElementById('contractSymbol');
+        const contractAddress = document.getElementById('contractAddress');
+        const networkBadge = document.getElementById('networkBadge');
+        
+        if (contractName) contractName.textContent = config.CONTRACT_NAME;
+        if (contractSymbol) contractSymbol.textContent = config.CONTRACT_SYMBOL;
+        if (networkBadge) networkBadge.textContent = config.NETWORK.name;
+        
+        // Format contract address for display (show first 6 and last 4 characters)
+        if (contractAddress) {
+            const addr = config.CONTRACT_ADDRESS;
+            const displayAddr = `${addr.substring(0, 6)}...${addr.substring(addr.length - 4)}`;
+            contractAddress.textContent = displayAddr;
+            contractAddress.setAttribute('data-full-address', addr);
+        }
+        
+        // Populate social links
+        const socialLinks = document.getElementById('socialLinks');
+        if (socialLinks && config.BRANDING.socials) {
+            socialLinks.innerHTML = '';
+            const socials = config.BRANDING.socials;
+            
+            Object.entries(socials).forEach(([platform, url]) => {
+                const link = document.createElement('a');
+                link.href = url;
+                link.target = '_blank';
+                link.className = 'social-btn';
+                link.setAttribute('aria-label', platform);
+                
+                // Add appropriate icons
+                const icons = {
+                    twitter: '🐦',
+                    discord: '💬',
+                    telegram: '📱',
+                    website: '🌐'
+                };
+                
+                link.textContent = icons[platform] || '🔗';
+                socialLinks.appendChild(link);
+            });
+        }
+        
+        // Set up contract address copying
+        this.setupContractActions();
+    }
+    
+    setupContractActions() {
+        const copyBtn = document.getElementById('copyAddressBtn');
+        const explorerBtn = document.getElementById('viewExplorerBtn');
+        const contractAddress = document.getElementById('contractAddress');
+        
+        if (copyBtn && contractAddress) {
+            copyBtn.addEventListener('click', () => {
+                const fullAddress = contractAddress.getAttribute('data-full-address');
+                if (fullAddress) {
+                    navigator.clipboard.writeText(fullAddress).then(() => {
+                        copyBtn.textContent = '✅';
+                        setTimeout(() => {
+                            copyBtn.textContent = '📋';
+                        }, 2000);
+                    }).catch(() => {
+                        // Fallback for older browsers
+                        const textArea = document.createElement('textarea');
+                        textArea.value = fullAddress;
+                        document.body.appendChild(textArea);
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                        
+                        copyBtn.textContent = '✅';
+                        setTimeout(() => {
+                            copyBtn.textContent = '📋';
+                        }, 2000);
+                    });
+                }
+            });
+        }
+        
+        if (explorerBtn && window.GAME_CONFIG) {
+            explorerBtn.addEventListener('click', () => {
+                const explorerUrl = `${window.GAME_CONFIG.NETWORK.explorerUrl}/token/${window.GAME_CONFIG.CONTRACT_ADDRESS}`;
+                window.open(explorerUrl, '_blank');
+            });
+        }
+    }
     
     loadPlayerAssets() {
         const playerPaths = [
@@ -110,6 +224,12 @@ class GoKartsGame {
         document.getElementById('cancelWaiting').addEventListener('click', () => this.cancelMatchmaking());
         document.getElementById('playAgainBtn').addEventListener('click', () => this.startMatchmaking());
         document.getElementById('backToMenuBtn').addEventListener('click', () => this.showScreen('mainMenu'));
+        
+        // Add about button handler
+        const aboutBtn = document.getElementById('aboutBtn');
+        if (aboutBtn) {
+            aboutBtn.addEventListener('click', () => this.showAbout());
+        }
         
         // Game controls
         document.addEventListener('keydown', (e) => {
@@ -727,6 +847,24 @@ class GoKartsGame {
     
     showSettings() {
         alert('Settings coming soon!');
+    }
+    
+    showAbout() {
+        const config = window.GAME_CONFIG;
+        const aboutText = `
+${config?.BRANDING?.gameTitle || 'GoKarts Racing'}
+
+${config?.BRANDING?.description || 'The ultimate crypto racing game!'}
+
+Features:
+${config?.FEATURES?.join('\n') || '• Racing\n• Multiplayer\n• Leaderboards'}
+
+Contract: ${config?.CONTRACT_ADDRESS || 'Not configured'}
+Network: ${config?.NETWORK?.name || 'Ethereum'}
+
+Built with ❤️ for the crypto racing community!
+        `;
+        alert(aboutText);
     }
 }
 

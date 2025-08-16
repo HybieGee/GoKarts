@@ -149,7 +149,7 @@ class GoKartsGame {
             name: 'You',
             x: startPositions[0].x,
             y: startPositions[0].y,
-            angle: 0.3, // Slight angle to start turning into track
+            angle: 0, // Start facing right (0 radians)
             velocity: { x: 0, y: 0 },
             speed: 0,
             maxSpeed: 6,
@@ -171,7 +171,7 @@ class GoKartsGame {
                 name: `Player ${i + 1}`,
                 x: startPositions[i].x,
                 y: startPositions[i].y,
-                angle: 0.3 + (Math.random() - 0.5) * 0.2,
+                angle: 0,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
                 maxSpeed: 4 + Math.random(),

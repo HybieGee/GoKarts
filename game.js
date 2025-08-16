@@ -29,21 +29,20 @@ class GoKartsGame {
         this.raceStartTime = 0;
         this.raceFinished = false;
         
-        // Checkpoint system - using percentages for responsive scaling
-        this.checkpointPercents = [
-            { x1: 0.89, y1: 0.69, x2: 0.89, y2: 0.76 },  // CP1: right after start
-            { x1: 0.81, y1: 0.66, x2: 0.85, y2: 0.66 },  // CP2: horizontal on right
-            { x1: 0.33, y1: 0.78, x2: 0.33, y2: 0.85 },  // CP3: vertical bottom left
-            { x1: 0.32, y1: 0.43, x2: 0.37, y2: 0.43 },  // CP4: horizontal top left  
-            { x1: 0.45, y1: 0.33, x2: 0.45, y2: 0.40 },  // CP5: vertical at top
-            { x1: 0.54, y1: 0.49, x2: 0.59, y2: 0.49 },  // CP6: horizontal in middle
-            { x1: 0.67, y1: 0.61, x2: 0.67, y2: 0.69 },  // CP7: vertical on right side
-            { x1: 0.77, y1: 0.40, x2: 0.77, y2: 0.48 },  // CP8: vertical upper right
-            { x1: 0.92, y1: 0.55, x2: 0.97, y2: 0.55 }   // CP9: horizontal before finish
+        // Checkpoint zones - invisible areas that detect when players pass through
+        this.checkpointZones = [
+            { x: 0.89, y: 0.72, radius: 0.06 },  // CP1: after start
+            { x: 0.83, y: 0.66, radius: 0.06 },  // CP2: right curve
+            { x: 0.33, y: 0.81, radius: 0.06 },  // CP3: bottom left
+            { x: 0.35, y: 0.43, radius: 0.06 },  // CP4: top left
+            { x: 0.45, y: 0.36, radius: 0.06 },  // CP5: top center
+            { x: 0.56, y: 0.49, radius: 0.06 },  // CP6: middle
+            { x: 0.67, y: 0.65, radius: 0.06 },  // CP7: right middle
+            { x: 0.77, y: 0.44, radius: 0.06 },  // CP8: upper right
+            { x: 0.94, y: 0.55, radius: 0.06 }   // CP9: before finish
         ];
         
-        // Convert percentages to actual coordinates based on canvas size
-        this.updateCheckpointPositions();
+        this.checkpoints = [];
         
         // Leaderboard data (stored locally for now)
         this.leaderboard = this.loadLeaderboard();
@@ -61,14 +60,7 @@ class GoKartsGame {
     }
     
     updateCheckpointPositions() {
-        // Convert percentage positions to actual canvas coordinates
-        this.checkpoints = this.checkpointPercents.map(cp => ({
-            x1: cp.x1 * this.canvas.width,
-            y1: cp.y1 * this.canvas.height,
-            x2: cp.x2 * this.canvas.width,
-            y2: cp.y2 * this.canvas.height,
-            width: 60
-        }));
+        // No longer needed - using zones instead
     }
     
     loadPlayerAssets() {
@@ -343,24 +335,26 @@ class GoKartsGame {
     
     updateCheckpoints() {
         this.players.forEach(player => {
-            this.checkpoints.forEach((checkpoint, index) => {
-                // Check if player crossed the checkpoint line
-                const crossed = this.lineIntersectsCircle(
-                    checkpoint.x1, checkpoint.y1, 
-                    checkpoint.x2, checkpoint.y2,
-                    player.x, player.y, 30
-                );
+            this.checkpointZones.forEach((zone, index) => {
+                // Check if player is in checkpoint zone
+                const zoneX = zone.x * this.canvas.width;
+                const zoneY = zone.y * this.canvas.height;
+                const zoneRadius = zone.radius * this.canvas.width;
                 
-                if (crossed) {
+                const dx = player.x - zoneX;
+                const dy = player.y - zoneY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < zoneRadius) {
                     // Check if this is the next checkpoint in sequence
                     const expectedNext = player.lastCheckpoint + 1;
                     
-                    if (index === expectedNext) {
+                    if (index === expectedNext && !player.checkpointsPassed.includes(index)) {
                         player.checkpointsPassed.push(index);
                         player.lastCheckpoint = index;
                         
                         // If completed all checkpoints, ready for lap completion
-                        if (player.checkpointsPassed.length === this.checkpoints.length) {
+                        if (player.checkpointsPassed.length === this.checkpointZones.length) {
                             player.readyForLap = true;
                         }
                     }
@@ -574,43 +568,34 @@ class GoKartsGame {
     }
     
     drawCheckpoints() {
-        if (!this.localPlayer) return;
-        
-        this.checkpoints.forEach((checkpoint, index) => {
-            const passed = this.localPlayer.checkpointsPassed.includes(index);
-            const isNext = this.localPlayer.lastCheckpoint + 1 === index;
-            
-            // Set checkpoint color based on status
-            if (passed) {
-                this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)'; // Green if passed
-            } else if (isNext) {
-                this.ctx.strokeStyle = 'rgba(255, 255, 0, 1)'; // Yellow if next
-                this.ctx.shadowColor = 'yellow';
-                this.ctx.shadowBlur = 10;
-            } else {
-                this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; // Red if not reached
-            }
-            
-            // Draw checkpoint bar
-            this.ctx.lineWidth = 6;
-            this.ctx.beginPath();
-            this.ctx.moveTo(checkpoint.x1, checkpoint.y1);
-            this.ctx.lineTo(checkpoint.x2, checkpoint.y2);
-            this.ctx.stroke();
-            this.ctx.shadowBlur = 0;
-            
-            // Draw checkpoint number
-            const midX = (checkpoint.x1 + checkpoint.x2) / 2;
-            const midY = (checkpoint.y1 + checkpoint.y2) / 2;
-            
-            this.ctx.fillStyle = 'white';
-            this.ctx.strokeStyle = 'black';
-            this.ctx.lineWidth = 3;
-            this.ctx.font = 'bold 16px Arial';
-            this.ctx.textAlign = 'center';
-            this.ctx.strokeText(String(index + 1), midX, midY);
-            this.ctx.fillText(String(index + 1), midX, midY);
-        });
+        // Optional: Show checkpoint numbers for debugging
+        if (false) { // Set to true to see checkpoint zones
+            this.checkpointZones.forEach((zone, index) => {
+                const x = zone.x * this.canvas.width;
+                const y = zone.y * this.canvas.height;
+                const radius = zone.radius * this.canvas.width;
+                
+                // Draw semi-transparent zone circle
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, radius, 0, Math.PI * 2);
+                
+                if (this.localPlayer && this.localPlayer.checkpointsPassed.includes(index)) {
+                    this.ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                } else if (this.localPlayer && this.localPlayer.lastCheckpoint + 1 === index) {
+                    this.ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+                } else {
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                }
+                
+                this.ctx.fill();
+                
+                // Draw checkpoint number
+                this.ctx.fillStyle = 'white';
+                this.ctx.font = 'bold 20px Arial';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText(String(index + 1), x, y + 7);
+            });
+        }
     }
     
     drawPlayer(player) {

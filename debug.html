@@ -51,7 +51,9 @@
         <h3>Server Connection</h3>
         <p>Status: <span id="connectionStatus" class="status-bad">Disconnected</span></p>
         <p>Player ID: <span id="playerId">None</span></p>
+        <p>Player Name: <span id="playerName">None</span></p>
         <p>Room: <span id="roomInfo">Not in room</span></p>
+        <p>Game State: <span id="gameState">Unknown</span></p>
         <button onclick="connectToServer()">Connect to Server</button>
         <button onclick="findMatch()">Find Match</button>
         <button onclick="leaveRoom()">Leave Room</button>
@@ -172,6 +174,9 @@
             socket.on('room-update', (data) => {
                 log(`🏠 Room update: ${data.playersCount}/${data.maxPlayers} players`);
                 document.getElementById('roomInfo').textContent = `${data.playersCount}/${data.maxPlayers} players`;
+                if (data.players && data.players.length > 0) {
+                    log(`👥 Players in room: ${data.players.map(p => p.name).join(', ')}`);
+                }
             });
             
             socket.on('race-start', (data) => {
@@ -199,9 +204,12 @@
                 return;
             }
             
-            log('🔍 Looking for match...');
+            const playerName = `DebugPlayer_${Date.now().toString().slice(-4)}`;
+            log(`🔍 Looking for match as ${playerName}...`);
+            document.getElementById('playerName').textContent = playerName;
+            
             socket.emit('player-identify', {
-                name: `DebugPlayer_${Date.now().toString().slice(-4)}`,
+                name: playerName,
                 wallet: null
             });
             socket.emit('find-match');

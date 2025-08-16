@@ -24,6 +24,7 @@ export default {
       // Get or create game room
       const gameRoomId = env.GAME_ROOMS.idFromName('default');
       const gameRoom = env.GAME_ROOMS.get(gameRoomId);
+      console.log('🏠 Using game room:', gameRoomId.toString());
       
       // Handle the WebSocket in the Durable Object
       await gameRoom.fetch(new Request('https://dummy-url', {
@@ -69,11 +70,12 @@ export class GameRoom {
     // Accept and handle the WebSocket
     websocket.accept();
     this.sessions.add(websocket);
+    console.log(`🔌 Player connected! Total sessions: ${this.sessions.size}`);
     
     websocket.addEventListener('message', event => {
       try {
         const data = JSON.parse(event.data);
-        console.log('Received message:', data.type);
+        console.log(`📨 Received message: ${data.type} (from ${this.sessions.size} total sessions)`);
         this.handleMessage(websocket, data);
       } catch (error) {
         console.error('Message parse error:', error);
@@ -96,16 +98,20 @@ export class GameRoom {
   }
 
   handleMessage(websocket, message) {
+    console.log(`🎮 Handling ${message.type} message`);
     switch (message.type) {
       case 'player-identify':
+        const playerId = this.generateId();
         this.players.set(websocket, {
-          id: this.generateId(),
+          id: playerId,
           name: message.name,
           position: { x: 0.8, y: 0.5, angle: 0 }
         });
+        console.log(`👤 Player identified: ${message.name} (ID: ${playerId}), Total players: ${this.players.size}`);
         break;
         
       case 'find-match':
+        console.log(`🔍 Player ${this.players.get(websocket)?.name || 'Unknown'} looking for match`);
         this.startMatchmaking(websocket);
         break;
         
@@ -116,6 +122,8 @@ export class GameRoom {
   }
 
   startMatchmaking(websocket) {
+    console.log(`🏁 Starting matchmaking - Sessions: ${this.sessions.size}, Players: ${this.players.size}, Game State: ${this.gameState}`);
+    
     // Broadcast to all players in room
     const roomData = {
       type: 'room-update',
@@ -124,25 +132,32 @@ export class GameRoom {
       players: Array.from(this.players.values()).map(p => ({ id: p.id, name: p.name }))
     };
     
+    console.log(`📢 Broadcasting room update to ${this.sessions.size} sessions:`, roomData.players.map(p => p.name));
     this.broadcast(JSON.stringify(roomData));
     
     // Only start race automatically if we have 2+ players or after 10 seconds with 1 player
     if (this.gameState === 'waiting') {
       if (this.sessions.size >= 2) {
+        console.log(`⚡ 2+ players detected, starting race in 3 seconds`);
         // Start race quickly with multiple players
         setTimeout(() => {
           if (this.gameState === 'waiting') {
+            console.log(`🚀 Starting race with ${this.sessions.size} players`);
             this.startRace();
           }
         }, 3000);
       } else if (this.sessions.size === 1) {
+        console.log(`⏳ Single player detected, waiting 10 seconds for others`);
         // Wait longer for single player to give others time to join
         setTimeout(() => {
           if (this.gameState === 'waiting' && this.sessions.size >= 1) {
+            console.log(`🚀 Starting race after timeout with ${this.sessions.size} players`);
             this.startRace();
           }
         }, 10000);
       }
+    } else {
+      console.log(`❌ Cannot start matchmaking - game state is ${this.gameState}`);
     }
   }
 

@@ -6,6 +6,13 @@ class GoKartsGame {
         this.currentScreen = 'mainMenu';
         this.gameState = 'menu'; // menu, waiting, racing, results
         
+        // Multiplayer
+        this.socket = null;
+        this.isMultiplayer = false;
+        this.roomData = null;
+        this.playerId = null;
+        this.playerName = null;
+        
         // Player assets
         this.playerImages = [];
         this.loadPlayerAssets();
@@ -65,9 +72,244 @@ class GoKartsGame {
         
         this.initializeEventListeners();
         this.populateLandingPage();
+        this.initializeMultiplayer();
         this.showScreen('mainMenu');
         
         
+    }
+    
+    initializeMultiplayer() {
+        // Connect to multiplayer server
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.host || 'localhost:3000';
+        
+        if (typeof io !== 'undefined') {
+            this.socket = io();
+            this.setupMultiplayerEvents();
+            console.log('🌐 Connecting to multiplayer server...');
+        } else {
+            console.log('⚠️ Socket.io not loaded, running in offline mode');
+        }
+    }
+    
+    setupMultiplayerEvents() {
+        if (!this.socket) return;
+        
+        this.socket.on('connect', () => {
+            console.log('✅ Connected to multiplayer server');
+            this.playerId = this.socket.id;
+            this.isMultiplayer = true;
+            
+            // Get player name
+            this.requestPlayerName();
+        });
+        
+        this.socket.on('disconnect', () => {
+            console.log('❌ Disconnected from server');
+            this.isMultiplayer = false;
+        });
+        
+        this.socket.on('room-update', (data) => {
+            this.roomData = data;
+            this.updateWaitingScreen(data);
+        });
+        
+        this.socket.on('race-start', (data) => {
+            console.log('🏁 Race starting with players:', data.players);
+            this.startMultiplayerRace(data);
+        });
+        
+        this.socket.on('player-position', (data) => {
+            this.updateRemotePlayerPosition(data);
+        });
+        
+        this.socket.on('race-end', (data) => {
+            console.log('🏆 Race ended, winner:', data.winner);
+            this.handleRaceEnd(data);
+        });
+        
+        this.socket.on('leaderboard-data', (data) => {
+            this.updateGlobalLeaderboard(data);
+        });
+        
+        this.socket.on('matchmaking-error', (error) => {
+            console.error('Matchmaking error:', error);
+            alert('Could not find a race. Please try again.');
+            this.showScreen('mainMenu');
+        });
+    }
+    
+    requestPlayerName() {
+        // Check if we have a saved name
+        let savedName = localStorage.getItem('gokarts_player_name');
+        
+        if (!savedName) {
+            savedName = prompt('Enter your player name:') || `Player_${Date.now().toString().slice(-6)}`;
+            localStorage.setItem('gokarts_player_name', savedName);
+        }
+        
+        this.playerName = savedName;
+        
+        // Identify to server
+        if (this.socket) {
+            this.socket.emit('player-identify', {
+                name: this.playerName,
+                wallet: null // TODO: Add wallet connection
+            });
+        }
+    }
+    
+    updateWaitingScreen(roomData) {
+        if (this.currentScreen === 'waitingScreen') {
+            const waitingText = document.querySelector('#waitingScreen p');
+            if (waitingText) {
+                waitingText.textContent = `Waiting for players (${roomData.playersCount}/${roomData.maxPlayers})`;
+            }
+            
+            // Show player list
+            const playerListDiv = document.getElementById('playerList');
+            if (!playerListDiv) {
+                const container = document.querySelector('#waitingScreen .screen-container');
+                const newPlayerList = document.createElement('div');
+                newPlayerList.id = 'playerList';
+                newPlayerList.innerHTML = '<h3>Players in Room:</h3>';
+                container.insertBefore(newPlayerList, container.querySelector('button'));
+            }
+            
+            const playerList = document.getElementById('playerList');
+            playerList.innerHTML = '<h3>Players in Room:</h3>' + 
+                roomData.players.map(p => `<p>• ${p.name}</p>`).join('');
+        }
+    }
+    
+    startMultiplayerRace(data) {
+        this.showScreen('gameScreen');
+        this.gameState = 'racing';
+        this.raceStartTime = data.startTime;
+        
+        // Initialize players
+        this.players = [];
+        data.players.forEach((playerData, index) => {
+            const isLocal = playerData.id === this.playerId;
+            const canvasWidth = this.canvas.width || 1200;
+            const canvasHeight = this.canvas.height || 800;
+            
+            const player = {
+                id: playerData.id,
+                name: playerData.name,
+                x: canvasWidth * playerData.position.x,
+                y: canvasHeight * playerData.position.y,
+                angle: playerData.position.angle,
+                velocity: { x: 0, y: 0 },
+                speed: 0,
+                maxSpeed: isLocal ? 6 : 3.5,
+                acceleration: isLocal ? 0.4 : 0.3,
+                deceleration: 0.6,
+                friction: 0.85,
+                turnSpeed: 0.08,
+                lapCount: 1,
+                position: index + 1,
+                isLocal: isLocal,
+                image: this.playerImages[index % this.playerImages.length],
+                nextCheckpoint: 0,
+                checkpointsPassed: [],
+                prevX: canvasWidth * playerData.position.x,
+                prevY: canvasHeight * playerData.position.y,
+                lapStarted: false,
+                lastCrossTime: 0
+            };
+            
+            this.players.push(player);
+            if (isLocal) {
+                this.localPlayer = player;
+            }
+        });
+        
+        this.raceFinished = false;
+        this.gameLoop();
+    }
+    
+    updateRemotePlayerPosition(data) {
+        const player = this.players.find(p => p.id === data.playerId);
+        if (player && !player.isLocal) {
+            const canvasWidth = this.canvas.width || 1200;
+            const canvasHeight = this.canvas.height || 800;
+            
+            // Interpolate position for smooth movement
+            player.x = canvasWidth * data.x;
+            player.y = canvasHeight * data.y;
+            player.angle = data.angle;
+            player.lapCount = data.lapCount;
+            player.nextCheckpoint = data.nextCheckpoint;
+        }
+    }
+    
+    sendPlayerUpdate() {
+        if (this.socket && this.localPlayer && this.gameState === 'racing') {
+            const canvasWidth = this.canvas.width || 1200;
+            const canvasHeight = this.canvas.height || 800;
+            
+            this.socket.emit('player-update', {
+                x: this.localPlayer.x / canvasWidth,
+                y: this.localPlayer.y / canvasHeight,
+                angle: this.localPlayer.angle,
+                lapCount: this.localPlayer.lapCount,
+                nextCheckpoint: this.localPlayer.nextCheckpoint,
+                speed: this.localPlayer.speed
+            });
+        }
+    }
+    
+    handleRaceEnd(data) {
+        this.raceFinished = true;
+        this.gameState = 'results';
+        
+        setTimeout(() => {
+            this.showMultiplayerResults(data);
+        }, 1000);
+    }
+    
+    showMultiplayerResults(data) {
+        this.showScreen('resultsScreen');
+        
+        const resultTitle = document.getElementById('raceResult');
+        const resultsList = document.getElementById('raceResultsList');
+        
+        const isWinner = data.winner.id === this.playerId;
+        if (isWinner) {
+            resultTitle.textContent = '🏆 You Won!';
+            resultTitle.style.color = '#ffd700';
+        } else {
+            resultTitle.textContent = `🏁 ${data.winner.name} Won!`;
+            resultTitle.style.color = '#ff6b6b';
+        }
+        
+        // Display final positions
+        resultsList.innerHTML = '';
+        data.finalPositions.forEach((player, index) => {
+            const entry = document.createElement('div');
+            entry.className = 'result-entry';
+            if (index === 0) entry.classList.add('winner');
+            if (player.id === this.playerId) entry.style.background = 'rgba(76, 236, 196, 0.2)';
+            
+            entry.innerHTML = `
+                <span>${player.position}. ${player.name}</span>
+                <span>${player.id === this.playerId ? '(You)' : ''}</span>
+            `;
+            resultsList.appendChild(entry);
+        });
+        
+        // Request updated leaderboard
+        if (this.socket) {
+            this.socket.emit('get-leaderboard');
+        }
+    }
+    
+    updateGlobalLeaderboard(leaderboardData) {
+        this.globalLeaderboard = leaderboardData;
+        if (this.currentScreen === 'leaderboardScreen') {
+            this.updateLeaderboardDisplay();
+        }
     }
     
     populateLandingPage() {
@@ -279,13 +521,22 @@ class GoKartsGame {
         this.showScreen('waitingScreen');
         this.gameState = 'waiting';
         
-        // Simulate finding players (in real implementation, this would connect to server)
-        setTimeout(() => {
-            this.startRace();
-        }, 2000);
+        if (this.isMultiplayer && this.socket) {
+            // Join multiplayer matchmaking
+            this.socket.emit('find-match');
+        } else {
+            // Fallback to single player mode
+            console.log('Starting offline race...');
+            setTimeout(() => {
+                this.startRace();
+            }, 2000);
+        }
     }
     
     cancelMatchmaking() {
+        if (this.socket) {
+            this.socket.emit('leave-room');
+        }
         this.showScreen('mainMenu');
         this.gameState = 'menu';
     }
@@ -387,18 +638,28 @@ class GoKartsGame {
         // Update local player
         this.updatePlayer(this.localPlayer);
         
-        // Update AI players
-        this.players.forEach(player => {
-            if (!player.isLocal) {
-                this.updateAIPlayer(player);
-            }
-        });
+        // Update AI players (only in offline mode)
+        if (!this.isMultiplayer) {
+            this.players.forEach(player => {
+                if (!player.isLocal) {
+                    this.updateAIPlayer(player);
+                }
+            });
+        }
         
         // Update checkpoints
         this.updateCheckpoints();
         
         // Update race positions
         this.updateRacePositions();
+        
+        // Send position updates to server (throttled)
+        if (this.isMultiplayer) {
+            if (!this.lastUpdateSent || Date.now() - this.lastUpdateSent > 50) { // 20 FPS updates
+                this.sendPlayerUpdate();
+                this.lastUpdateSent = Date.now();
+            }
+        }
         
         // Update UI
         this.updateRaceUI();
@@ -616,15 +877,24 @@ class GoKartsGame {
         this.raceFinished = true;
         this.gameState = 'results';
         
-        // Update leaderboard if local player won
-        if (winner.isLocal) {
-            this.updateLeaderboard('You');
+        // In multiplayer, notify server. In offline, handle locally
+        if (this.isMultiplayer && winner.isLocal && this.socket) {
+            this.socket.emit('race-finish', {
+                playerId: winner.id,
+                finalTime: Date.now() - this.raceStartTime,
+                lapCount: winner.lapCount
+            });
+        } else if (!this.isMultiplayer) {
+            // Update local leaderboard
+            if (winner.isLocal) {
+                this.updateLeaderboard(this.playerName || 'You');
+            }
+            
+            // Show results after short delay
+            setTimeout(() => {
+                this.showRaceResults(winner);
+            }, 1000);
         }
-        
-        // Show results after short delay
-        setTimeout(() => {
-            this.showRaceResults(winner);
-        }, 1000);
     }
     
     showRaceResults(winner) {
@@ -812,25 +1082,49 @@ class GoKartsGame {
     
     showLeaderboard() {
         this.showScreen('leaderboardScreen');
+        
+        // Request fresh leaderboard data if connected to server
+        if (this.socket && this.isMultiplayer) {
+            this.socket.emit('get-leaderboard');
+        }
     }
     
     updateLeaderboardDisplay() {
         const leaderboardList = document.getElementById('leaderboardList');
         leaderboardList.innerHTML = '';
         
-        if (this.leaderboard.length === 0) {
+        // Use global leaderboard if available, otherwise local
+        const leaderboardData = this.globalLeaderboard || this.leaderboard;
+        
+        if (leaderboardData.length === 0) {
             leaderboardList.innerHTML = '<p style="text-align: center; padding: 20px;">No races completed yet!</p>';
             return;
         }
         
-        this.leaderboard.forEach((entry, index) => {
+        // Add header to show if it's global or local leaderboard
+        const headerDiv = document.createElement('div');
+        headerDiv.style.textAlign = 'center';
+        headerDiv.style.padding = '10px';
+        headerDiv.style.fontWeight = 'bold';
+        headerDiv.style.color = this.globalLeaderboard ? '#4ecdc4' : '#ff6b6b';
+        headerDiv.textContent = this.globalLeaderboard ? '🌐 Global Leaderboard' : '📱 Local Leaderboard';
+        leaderboardList.appendChild(headerDiv);
+        
+        leaderboardData.forEach((entry, index) => {
             const entryDiv = document.createElement('div');
             entryDiv.className = 'leaderboard-entry';
             if (index === 0) entryDiv.classList.add('top');
             
+            // Highlight current player
+            const isCurrentPlayer = entry.name === this.playerName;
+            if (isCurrentPlayer) {
+                entryDiv.style.background = 'rgba(76, 236, 196, 0.2)';
+                entryDiv.style.border = '1px solid #4ecdc4';
+            }
+            
             entryDiv.innerHTML = `
                 <span class="leaderboard-rank">${index + 1}</span>
-                <span class="leaderboard-name">${entry.name}</span>
+                <span class="leaderboard-name">${entry.name}${isCurrentPlayer ? ' (You)' : ''}</span>
                 <span class="leaderboard-wins">${entry.wins} wins</span>
             `;
             leaderboardList.appendChild(entryDiv);

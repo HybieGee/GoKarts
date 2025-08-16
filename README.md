@@ -1,75 +1,112 @@
-# 🏎️ GoKarts Racing Game
+# 🏎️ GoKarts Racing - Multiplayer Crypto Racing Game
 
-A real-time multiplayer kart racing game built with vanilla JavaScript and HTML5 Canvas.
+A real-time multiplayer racing game built for the crypto community, launching on Solana with Pump.fun integration.
 
 ## 🎮 Features
 
-- **5-Player Racing**: Compete against 4 AI opponents in thrilling races
-- **3-Lap Races**: Complete 3 laps around the track to win
-- **Leaderboard System**: Track your wins and climb the rankings
-- **Responsive Controls**: Use WASD or Arrow keys to control your kart
-- **Custom Player Models**: Unique kart designs for each player
+- 🏁 **Real-time multiplayer racing** - Race against up to 5 players
+- 🎯 **Precision checkpoint system** - Fair racing with validated checkpoints  
+- 🏆 **Global leaderboards** - Track wins across all players
+- ⛽ **Gas fee rewards** - Top players get gas fees covered every 30 minutes
+- 💎 **Pump.fun integration** - Easy token purchasing
+- 📱 **Mobile responsive** - Play on any device
 
-## 🚀 Play Now
+## 🚀 Getting Started
 
-[Play GoKarts Racing](https://your-domain.com) *(Coming Soon)*
+### Prerequisites
 
-## 🎯 How to Play
+- Node.js 16+ 
+- npm or yarn
 
-1. Click **PLAY** to join a race
-2. Use **WASD** or **Arrow Keys** to control your kart:
+### Installation
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Configure the game in `config.js`:
+```javascript
+const GAME_CONFIG = {
+    CONTRACT_ADDRESS: "YOUR_PUMP_FUN_ADDRESS",
+    BUY_BUTTON: {
+        url: "https://pump.fun/YOUR_TOKEN_ADDRESS"
+    }
+    // ... other settings
+};
+```
+
+### Running the Game
+
+#### Development Mode
+```bash
+npm run dev
+```
+
+#### Production Mode
+```bash
+npm start
+```
+
+The server will start on `http://localhost:3000`
+
+## 🏁 How to Play
+
+1. Enter your player name when prompted
+2. Click **START RACING** to find a match
+3. Wait for other players to join (2-5 players per race)
+4. Use **WASD** or **Arrow Keys** to control your kart:
    - **W/↑**: Accelerate
    - **S/↓**: Brake/Reverse
    - **A/←**: Turn Left
    - **D/→**: Turn Right
-3. Complete 3 laps before your opponents to win!
-4. Winners get added to the leaderboard
+5. Complete 3 laps through all checkpoints to win!
+6. Winners get added to the global leaderboard
 
 ## 🛠️ Technology Stack
 
+- **Backend**: Node.js, Express.js, Socket.io
 - **Frontend**: HTML5, CSS3, Vanilla JavaScript
-- **Graphics**: HTML5 Canvas 2D
-- **Storage**: LocalStorage (temporary)
-- **Deployment**: Vercel
+- **Graphics**: HTML5 Canvas 2D with collision detection
+- **Storage**: JSON file storage (leaderboard.json)
+- **Deployment**: Supports Heroku, Vercel, Docker
 
 ## 🔧 Development
 
-### Local Setup
-```bash
-git clone https://github.com/HybieGee/GoKarts.git
-cd GoKarts
-# Open index.html in your browser
-```
-
 ### Project Structure
 ```
+├── server.js            # Multiplayer server
+├── package.json         # Dependencies and scripts
 ├── index.html          # Main game page
-├── styles.css          # Game styling
-├── game.js             # Core game logic
+├── styles.css          # Game styling with glassmorphism
+├── game.js             # Core game logic + multiplayer
+├── config.js           # Game configuration
 ├── Player (1-5).png    # Player kart sprites
-├── vercel.json         # Vercel deployment config
-└── docs/               # Documentation
+├── Map.png             # Race track image
+├── leaderboard.json    # Global leaderboard storage
+└── README.md           # This file
 ```
 
-## 🚧 Roadmap
+## 🌐 Multiplayer Architecture
 
-### Current (v1.0)
-- ✅ Single-player with AI opponents
-- ✅ Local leaderboard
-- ✅ Basic racing mechanics
+- **Express.js** server with Socket.io for real-time communication
+- **Room-based matchmaking** - automatically matches 2-5 players
+- **Global leaderboard** with persistent JSON storage
+- **20 FPS position synchronization** for smooth gameplay
+- **Server-side validation** for anti-cheat protection
+- **Fallback offline mode** when server unavailable
 
-### Upcoming (v2.0)
-- 🔄 Real-time multiplayer
-- 🔄 Custom track editor
-- 🔄 Power-ups and items
-- 🔄 Player accounts and profiles
-- 🔄 Multiple racing tracks
+## 🎯 Game Features
 
-### Future (v3.0)
-- 📋 Tournaments and seasons
-- 📋 Advanced physics engine
-- 📋 Mobile app version
-- 📋 Spectator mode
+### Checkpoint System
+- 10 precisely positioned checkpoints around the track
+- Must pass through all checkpoints in order for valid laps
+- Visual indicators show next checkpoint and progress
+
+### Rewards System  
+- Top leaderboard player receives gas fee rewards every 30 minutes
+- Rewards come from token treasury with verifiable on-chain transactions
+- Automatic distribution system (configurable)
 
 ## 🎨 Assets
 

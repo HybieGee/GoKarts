@@ -29,17 +29,17 @@ class GoKartsGame {
         this.raceStartTime = 0;
         this.raceFinished = false;
         
-        // Checkpoint system - bars across track matching your layout
+        // Checkpoint system - bars across track (canvas is 1200x800)
         this.checkpoints = [
-            { x1: 980, y1: 580, x2: 980, y2: 660, width: 80 },   // Checkpoint 1 (right side, after start)
-            { x1: 920, y1: 480, x2: 860, y2: 480, width: 80 },   // Checkpoint 2 (horizontal, upper right)
-            { x1: 340, y1: 560, x2: 340, y2: 640, width: 80 },   // Checkpoint 3 (vertical, bottom left)
-            { x1: 280, y1: 320, x2: 360, y2: 320, width: 80 },   // Checkpoint 4 (horizontal, top left)
-            { x1: 500, y1: 200, x2: 500, y2: 280, width: 80 },   // Checkpoint 5 (vertical, top middle)
-            { x1: 580, y1: 360, x2: 660, y2: 360, width: 80 },   // Checkpoint 6 (horizontal, center)
-            { x1: 780, y1: 460, x2: 780, y2: 540, width: 80 },   // Checkpoint 7 (vertical, lower right)
-            { x1: 880, y1: 240, x2: 880, y2: 320, width: 80 },   // Checkpoint 8 (vertical, upper right loop)
-            { x1: 1020, y1: 400, x2: 1100, y2: 400, width: 80 }  // Checkpoint 9 (horizontal, right side)
+            { x1: 1000, y1: 550, x2: 1000, y2: 630, width: 80 },  // Checkpoint 1 (vertical, after start)
+            { x1: 880, y1: 500, x2: 960, y2: 500, width: 80 },   // Checkpoint 2 (horizontal, right curve)
+            { x1: 350, y1: 550, x2: 350, y2: 630, width: 80 },   // Checkpoint 3 (vertical, left bottom)
+            { x1: 320, y1: 300, x2: 400, y2: 300, width: 80 },   // Checkpoint 4 (horizontal, left top)
+            { x1: 500, y1: 220, x2: 500, y2: 300, width: 80 },   // Checkpoint 5 (vertical, top center)
+            { x1: 600, y1: 350, x2: 680, y2: 350, width: 80 },   // Checkpoint 6 (horizontal, middle)
+            { x1: 750, y1: 450, x2: 750, y2: 530, width: 80 },   // Checkpoint 7 (vertical, right middle)
+            { x1: 850, y1: 270, x2: 850, y2: 350, width: 80 },   // Checkpoint 8 (vertical, top right)
+            { x1: 1040, y1: 400, x2: 1120, y2: 400, width: 80 }  // Checkpoint 9 (horizontal, before finish)
         ];
         
         // Leaderboard data (stored locally for now)

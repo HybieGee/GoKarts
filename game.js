@@ -12,8 +12,17 @@ class GoKartsGame {
         
         // Track image
         this.trackImage = new Image();
+        this.trackImageCanvas = null;
+        this.trackImageData = null;
         this.trackImage.onload = () => {
             console.log('Track image loaded successfully');
+            // Create a canvas to read pixel data for collision detection
+            this.trackImageCanvas = document.createElement('canvas');
+            this.trackImageCanvas.width = this.trackImage.width;
+            this.trackImageCanvas.height = this.trackImage.height;
+            const ctx = this.trackImageCanvas.getContext('2d');
+            ctx.drawImage(this.trackImage, 0, 0);
+            this.trackImageData = ctx.getImageData(0, 0, this.trackImage.width, this.trackImage.height);
         };
         this.trackImage.onerror = () => {
             console.log('Could not load track image, using fallback design');
@@ -250,8 +259,18 @@ class GoKartsGame {
         player.velocity.y = -Math.cos(player.angle) * player.speed;
         
         // Update position
-        player.x += player.velocity.x;
-        player.y += player.velocity.y;
+        // Calculate new position and check collision
+        const newX = player.x + player.velocity.x;
+        const newY = player.y + player.velocity.y;
+        
+        // Check if new position is on track
+        if (this.isOnTrack(newX, newY)) {
+            player.x = newX;
+            player.y = newY;
+        } else {
+            // If hit wall, reduce speed significantly
+            player.speed *= 0.3;
+        }
         
         // Keep player on screen
         player.x = Math.max(30, Math.min(this.canvas.width - 30, player.x));
@@ -289,6 +308,30 @@ class GoKartsGame {
     }
     
     
+    isOnTrack(x, y) {
+        // Check if position is on the track (not on grass)
+        if (!this.trackImageData) return true; // If no collision data, allow movement
+        
+        // Convert canvas coordinates to image coordinates
+        const imgX = Math.floor((x / this.canvas.width) * this.trackImage.width);
+        const imgY = Math.floor((y / this.canvas.height) * this.trackImage.height);
+        
+        // Bounds check
+        if (imgX < 0 || imgX >= this.trackImage.width || imgY < 0 || imgY >= this.trackImage.height) {
+            return false;
+        }
+        
+        // Get pixel data (RGBA)
+        const pixelIndex = (imgY * this.trackImage.width + imgX) * 4;
+        const r = this.trackImageData.data[pixelIndex];
+        const g = this.trackImageData.data[pixelIndex + 1];
+        const b = this.trackImageData.data[pixelIndex + 2];
+        
+        // Green grass is roughly RGB(76, 175, 80) - check if it's NOT green
+        // Track (dark gray) and borders (red/white) should allow movement
+        const isGreen = g > r + 50 && g > b + 50; // Simple green detection
+        return !isGreen;
+    }
     
     
     

@@ -234,10 +234,11 @@
         const script = document.createElement('script');
         script.src = '/socket.io/socket.io.js';
         script.onerror = function() {
-            console.log('Socket.io not available - running in offline mode');
+            console.log('Socket.io not available - trying Cloudflare Workers');
         };
         document.head.appendChild(script);
     </script>
+    <script src="websocket-client.js"></script>
     <script src="config.js"></script>
     <script src="game.js"></script>
 </body>

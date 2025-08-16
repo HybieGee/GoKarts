@@ -85,12 +85,18 @@ class GoKartsGame {
         
         console.log(`🌐 Attempting to connect to multiplayer server at ${host}`);
         
-        if (typeof io !== 'undefined') {
+        // Try Cloudflare Workers first, then Socket.io, then offline
+        if (typeof createCloudflareClient !== 'undefined') {
+            console.log('🚀 Trying Cloudflare Workers connection...');
+            this.socket = createCloudflareClient();
+            this.socket.connect('wss://gokarts-multiplayer.your-subdomain.workers.dev');
+            this.setupMultiplayerEvents();
+        } else if (typeof io !== 'undefined') {
+            console.log('📡 Trying Socket.io connection...');
             this.socket = io();
             this.setupMultiplayerEvents();
-            console.log('📡 Socket.io loaded, initializing connection...');
         } else {
-            console.log('⚠️ Running in offline mode (no Socket.io server)');
+            console.log('⚠️ Running in offline mode (no multiplayer server available)');
             console.log('🎮 You can still play with AI opponents!');
             this.isMultiplayer = false;
             this.updateConnectionStatus(false);

@@ -33,8 +33,27 @@ class GoKartsGame {
         // Game data
         this.players = [];
         this.localPlayer = null;
+        this.currentLap = 1;
+        this.maxLaps = 3;
         this.raceStartTime = 0;
         this.raceFinished = false;
+        
+        // Checkpoint system
+        this.checkpointLines = [
+            { p1: { x: 0.62, y: 0.76 }, p2: { x: 0.69, y: 0.91 } },  // CP1
+            { p1: { x: 0.41, y: 0.93 }, p2: { x: 0.44, y: 0.79 } },  // CP2
+            { p1: { x: 0.15, y: 0.76 }, p2: { x: 0.24, y: 0.66 } },  // CP3
+            { p1: { x: 0.06, y: 0.37 }, p2: { x: 0.17, y: 0.39 } },  // CP4
+            { p1: { x: 0.26, y: 0.11 }, p2: { x: 0.27, y: 0.24 } },  // CP5
+            { p1: { x: 0.33, y: 0.32 }, p2: { x: 0.44, y: 0.34 } },  // CP6
+            { p1: { x: 0.43, y: 0.51 }, p2: { x: 0.34, y: 0.63 } },  // CP7
+            { p1: { x: 0.53, y: 0.48 }, p2: { x: 0.62, y: 0.57 } },  // CP8
+            { p1: { x: 0.59, y: 0.20 }, p2: { x: 0.67, y: 0.32 } },  // CP9
+            { p1: { x: 0.76, y: 0.28 }, p2: { x: 0.84, y: 0.14 } }   // CP10
+        ];
+        
+        // Start/finish line (across the track near start position)
+        this.startFinishLine = { p1: { x: 0.78, y: 0.48 }, p2: { x: 0.82, y: 0.52 } };
         
         
         // Leaderboard data (stored locally for now)
@@ -47,23 +66,6 @@ class GoKartsGame {
         this.initializeEventListeners();
         this.showScreen('mainMenu');
         
-        // Debug mode
-        this.debugMode = true;
-        this.debugClicks = [];
-        
-        // Checkpoint lines (p1 and p2 coordinates for each line)
-        this.debugCheckpoints = [
-            { p1: { x: 0.62, y: 0.76 }, p2: { x: 0.69, y: 0.91 }, name: "CP1" },
-            { p1: { x: 0.41, y: 0.93 }, p2: { x: 0.44, y: 0.79 }, name: "CP2" },
-            { p1: { x: 0.15, y: 0.76 }, p2: { x: 0.24, y: 0.66 }, name: "CP3" },
-            { p1: { x: 0.06, y: 0.37 }, p2: { x: 0.17, y: 0.39 }, name: "CP4" },
-            { p1: { x: 0.26, y: 0.11 }, p2: { x: 0.27, y: 0.24 }, name: "CP5" },
-            { p1: { x: 0.33, y: 0.32 }, p2: { x: 0.44, y: 0.34 }, name: "CP6" },
-            { p1: { x: 0.43, y: 0.51 }, p2: { x: 0.34, y: 0.63 }, name: "CP7" },
-            { p1: { x: 0.53, y: 0.48 }, p2: { x: 0.62, y: 0.57 }, name: "CP8" },
-            { p1: { x: 0.59, y: 0.20 }, p2: { x: 0.67, y: 0.32 }, name: "CP9" },
-            { p1: { x: 0.76, y: 0.28 }, p2: { x: 0.84, y: 0.14 }, name: "CP10" }
-        ];
     }
     
     
@@ -117,33 +119,6 @@ class GoKartsGame {
         document.addEventListener('keyup', (e) => {
             this.keys[e.key.toLowerCase()] = false;
             this.keys[e.code] = false;
-        });
-        
-        // Debug: Click to get coordinates
-        document.addEventListener('click', (e) => {
-            if (this.debugMode && this.currentScreen === 'gameScreen') {
-                const rect = this.canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                
-                // Convert to canvas coordinates
-                const canvasX = (x / rect.width) * this.canvas.width;
-                const canvasY = (y / rect.height) * this.canvas.height;
-                
-                // Convert to percentage
-                const percentX = canvasX / this.canvas.width;
-                const percentY = canvasY / this.canvas.height;
-                
-                const clickData = { x: canvasX, y: canvasY, percentX, percentY };
-                this.debugClicks.push(clickData);
-                
-                console.log(`Click at: Canvas(${Math.round(canvasX)}, ${Math.round(canvasY)}) = Percent(${percentX.toFixed(3)}, ${percentY.toFixed(3)})`);
-                
-                // Keep only last 5 clicks
-                if (this.debugClicks.length > 5) {
-                    this.debugClicks.shift();
-                }
-            }
         });
     }
     
@@ -217,8 +192,16 @@ class GoKartsGame {
             deceleration: 0.6,
             friction: 0.85,
             turnSpeed: 0.08,
+            lapCount: 1,
+            position: 1,
             isLocal: true,
             image: this.playerImages[0],
+            nextCheckpoint: 0,
+            checkpointsPassed: [],
+            prevX: startPosition.x,
+            prevY: startPosition.y,
+            lapStarted: false,
+            lastCrossTime: 0,
         };
         this.players.push(this.localPlayer);
         
@@ -237,9 +220,17 @@ class GoKartsGame {
                 deceleration: 0.5,
                 friction: 0.85,
                 turnSpeed: 0.06 + Math.random() * 0.02,
+                lapCount: 1,
+                position: i + 1,
                 isLocal: false,
                 image: this.playerImages[i],
                 aiTarget: { x: 300, y: 150 }, // First turn target
+                nextCheckpoint: 0,
+                checkpointsPassed: [],
+                prevX: startPosition.x,
+                prevY: startPosition.y,
+                lapStarted: false,
+                lastCrossTime: 0,
             });
         }
         
@@ -266,7 +257,11 @@ class GoKartsGame {
             }
         });
         
+        // Update checkpoints
+        this.updateCheckpoints();
         
+        // Update race positions
+        this.updateRacePositions();
         
         // Update UI
         this.updateRaceUI();
@@ -367,6 +362,164 @@ class GoKartsGame {
         player.speed = Math.min(player.speed + player.acceleration, player.maxSpeed);
     }
     
+    updateCheckpoints() {
+        const now = Date.now();
+        
+        this.players.forEach(player => {
+            // Skip if cooldown hasn't expired (prevent double triggers)
+            if (now - player.lastCrossTime < 150) {
+                player.prevX = player.x;
+                player.prevY = player.y;
+                return;
+            }
+            
+            // Create movement segment from previous to current position
+            const movementSegment = {
+                p1: { x: player.prevX, y: player.prevY },
+                p2: { x: player.x, y: player.y }
+            };
+            
+            // Convert start/finish line to canvas coordinates
+            const canvasWidth = this.canvas.width || 1200;
+            const canvasHeight = this.canvas.height || 800;
+            const sfLine = {
+                p1: { x: this.startFinishLine.p1.x * canvasWidth, 
+                     y: this.startFinishLine.p1.y * canvasHeight },
+                p2: { x: this.startFinishLine.p2.x * canvasWidth,
+                     y: this.startFinishLine.p2.y * canvasHeight }
+            };
+            
+            // Check start/finish line crossing
+            if (this.segmentsIntersect(movementSegment.p1, movementSegment.p2, sfLine.p1, sfLine.p2)) {
+                if (!player.lapStarted) {
+                    // First time crossing S/F - start the lap
+                    player.lapStarted = true;
+                    player.nextCheckpoint = 0;
+                    player.checkpointsPassed = [];
+                } else if (player.nextCheckpoint === this.checkpointLines.length) {
+                    // Completed all checkpoints - valid lap!
+                    player.lapCount++;
+                    player.nextCheckpoint = 0;
+                    player.checkpointsPassed = [];
+                    player.lastCrossTime = now;
+                    
+                    if (player.lapCount > this.maxLaps && !this.raceFinished) {
+                        this.finishRace(player);
+                    }
+                }
+            }
+            
+            // Check next checkpoint crossing
+            if (player.lapStarted && player.nextCheckpoint < this.checkpointLines.length) {
+                const checkpoint = this.checkpointLines[player.nextCheckpoint];
+                const cpLine = {
+                    p1: { x: checkpoint.p1.x * canvasWidth,
+                         y: checkpoint.p1.y * canvasHeight },
+                    p2: { x: checkpoint.p2.x * canvasWidth,
+                         y: checkpoint.p2.y * canvasHeight }
+                };
+                
+                if (this.segmentsIntersect(movementSegment.p1, movementSegment.p2, cpLine.p1, cpLine.p2)) {
+                    player.checkpointsPassed.push(player.nextCheckpoint);
+                    player.nextCheckpoint++;
+                    player.lastCrossTime = now;
+                }
+            }
+            
+            // Update previous position for next frame
+            player.prevX = player.x;
+            player.prevY = player.y;
+        });
+    }
+    
+    segmentsIntersect(a1, a2, b1, b2) {
+        // Check if two line segments intersect
+        const cross = (p, q, r) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+        
+        const d1 = cross(a1, a2, b1);
+        const d2 = cross(a1, a2, b2);
+        const d3 = cross(b1, b2, a1);
+        const d4 = cross(b1, b2, a2);
+        
+        if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && 
+            ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+            return true;
+        }
+        
+        // Handle collinear cases
+        const onSegment = (p, q, r) => {
+            return Math.min(p.x, r.x) <= q.x && q.x <= Math.max(p.x, r.x) &&
+                   Math.min(p.y, r.y) <= q.y && q.y <= Math.max(p.y, r.y);
+        };
+        
+        if (Math.abs(d1) < 1e-6 && onSegment(a1, b1, a2)) return true;
+        if (Math.abs(d2) < 1e-6 && onSegment(a1, b2, a2)) return true;
+        if (Math.abs(d3) < 1e-6 && onSegment(b1, a1, b2)) return true;
+        if (Math.abs(d4) < 1e-6 && onSegment(b1, a2, b2)) return true;
+        
+        return false;
+    }
+    
+    updateRacePositions() {
+        // Calculate position based on laps and checkpoints
+        this.players.forEach(player => {
+            const lapProgress = player.lapCount - 1;
+            const checkpointProgress = player.nextCheckpoint / Math.max(1, this.checkpointLines.length);
+            player.raceProgress = lapProgress + checkpointProgress;
+        });
+        
+        // Sort by race progress and assign positions
+        const sortedPlayers = [...this.players].sort((a, b) => b.raceProgress - a.raceProgress);
+        sortedPlayers.forEach((player, index) => {
+            player.position = index + 1;
+        });
+    }
+    
+    finishRace(winner) {
+        this.raceFinished = true;
+        this.gameState = 'results';
+        
+        // Update leaderboard if local player won
+        if (winner.isLocal) {
+            this.updateLeaderboard('You');
+        }
+        
+        // Show results after short delay
+        setTimeout(() => {
+            this.showRaceResults(winner);
+        }, 1000);
+    }
+    
+    showRaceResults(winner) {
+        this.showScreen('resultsScreen');
+        
+        const resultTitle = document.getElementById('raceResult');
+        const resultsList = document.getElementById('raceResultsList');
+        
+        if (winner.isLocal) {
+            resultTitle.textContent = '🏆 You Won!';
+            resultTitle.style.color = '#ffd700';
+        } else {
+            resultTitle.textContent = `${winner.name} Won!`;
+            resultTitle.style.color = '#ff6b6b';
+        }
+        
+        // Display final positions
+        const sortedPlayers = [...this.players].sort((a, b) => a.position - b.position);
+        resultsList.innerHTML = '';
+        
+        sortedPlayers.forEach((player, index) => {
+            const entry = document.createElement('div');
+            entry.className = 'result-entry';
+            if (index === 0) entry.classList.add('winner');
+            
+            entry.innerHTML = `
+                <span>${player.position}. ${player.name}</span>
+                <span>Lap ${Math.min(player.lapCount, this.maxLaps)}</span>
+            `;
+            resultsList.appendChild(entry);
+        });
+    }
     
     isOnTrack(x, y) {
         // Check if position is on the track (not on grass)
@@ -399,6 +552,9 @@ class GoKartsGame {
     
     updateRaceUI() {
         if (this.localPlayer) {
+            document.getElementById('lapCounter').textContent = `Lap: ${Math.min(this.localPlayer.lapCount, this.maxLaps)}/${this.maxLaps}`;
+            document.getElementById('position').textContent = `Position: ${this.localPlayer.position}/5`;
+            
             const elapsed = Math.floor((Date.now() - this.raceStartTime) / 1000);
             const minutes = Math.floor(elapsed / 60);
             const seconds = elapsed % 60;
@@ -415,15 +571,13 @@ class GoKartsGame {
         this.drawTrack();
         
         
+        // Draw checkpoints
+        this.drawCheckpoints();
+        
         // Draw players
         this.players.forEach(player => {
             this.drawPlayer(player);
         });
-        
-        // Debug: Draw coordinate grid and click markers
-        if (this.debugMode) {
-            this.drawDebugInfo();
-        }
     }
     
     drawTrack() {
@@ -455,117 +609,68 @@ class GoKartsGame {
         
         this.ctx.restore();
         
-        // Draw player name
+        // Draw player name and position
         this.ctx.fillStyle = 'white';
         this.ctx.font = '12px Arial';
         this.ctx.textAlign = 'center';
-        this.ctx.fillText(`${player.name}`, player.x, player.y - 40);
+        this.ctx.fillText(`${player.name} (${player.position})`, player.x, player.y - 40);
     }
     
-    drawDebugInfo() {
+    drawCheckpoints() {
         const canvasWidth = this.canvas.width || 1200;
         const canvasHeight = this.canvas.height || 800;
         
-        // Draw coordinate grid (every 10%)
-        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        this.ctx.lineWidth = 1;
-        this.ctx.font = '12px Arial';
-        this.ctx.fillStyle = 'white';
-        
-        for (let i = 0; i <= 10; i++) {
-            const x = (i / 10) * canvasWidth;
-            const y = (i / 10) * canvasHeight;
+        // Draw checkpoint lines
+        this.checkpointLines.forEach((checkpoint, index) => {
+            const p1 = { 
+                x: checkpoint.p1.x * canvasWidth,
+                y: checkpoint.p1.y * canvasHeight 
+            };
+            const p2 = { 
+                x: checkpoint.p2.x * canvasWidth,
+                y: checkpoint.p2.y * canvasHeight 
+            };
             
-            // Vertical lines
-            this.ctx.beginPath();
-            this.ctx.moveTo(x, 0);
-            this.ctx.lineTo(x, canvasHeight);
-            this.ctx.stroke();
-            
-            // Horizontal lines
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, y);
-            this.ctx.lineTo(canvasWidth, y);
-            this.ctx.stroke();
-            
-            // Labels
-            if (i > 0 && i < 10) {
-                this.ctx.fillText(`${i * 10}%`, x + 5, 20);
-                this.ctx.fillText(`${i * 10}%`, 5, y - 5);
+            // Set color based on checkpoint status
+            if (this.localPlayer) {
+                if (index < this.localPlayer.nextCheckpoint) {
+                    this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.6)'; // Green - passed
+                } else if (index === this.localPlayer.nextCheckpoint) {
+                    this.ctx.strokeStyle = 'rgba(255, 255, 0, 1)'; // Yellow - next
+                    this.ctx.shadowColor = 'yellow';
+                    this.ctx.shadowBlur = 5;
+                } else {
+                    this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)'; // Red - upcoming
+                }
+            } else {
+                this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)';
             }
-        }
-        
-        // Draw click markers
-        this.debugClicks.forEach((click, index) => {
-            this.ctx.fillStyle = `hsl(${index * 60}, 100%, 50%)`;
-            this.ctx.beginPath();
-            this.ctx.arc(click.x, click.y, 10, 0, Math.PI * 2);
-            this.ctx.fill();
             
-            // Draw coordinates
-            this.ctx.fillStyle = 'white';
-            this.ctx.fillText(`(${click.percentX.toFixed(2)}, ${click.percentY.toFixed(2)})`, 
-                             click.x + 15, click.y - 15);
-        });
-        
-        // Draw current start position
-        const startX = canvasWidth * 0.80;
-        const startY = canvasHeight * 0.50;
-        this.ctx.fillStyle = 'red';
-        this.ctx.beginPath();
-        this.ctx.arc(startX, startY, 15, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.fillStyle = 'white';
-        this.ctx.fillText('START', startX + 20, startY);
-        
-        // Draw facing direction arrow
-        const targetX = canvasWidth * 0.72;
-        const targetY = canvasHeight * 0.68;
-        this.ctx.strokeStyle = 'orange';
-        this.ctx.lineWidth = 3;
-        this.ctx.beginPath();
-        this.ctx.moveTo(startX, startY);
-        this.ctx.lineTo(targetX, targetY);
-        this.ctx.stroke();
-        
-        // Draw arrow head
-        this.ctx.fillStyle = 'orange';
-        this.ctx.beginPath();
-        this.ctx.arc(targetX, targetY, 8, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.fillStyle = 'white';
-        this.ctx.fillText('FACE', targetX + 10, targetY);
-        
-        // Draw reference checkpoint lines (blue lines)
-        this.debugCheckpoints.forEach((cp, index) => {
-            const p1X = canvasWidth * cp.p1.x;
-            const p1Y = canvasHeight * cp.p1.y;
-            const p2X = canvasWidth * cp.p2.x;
-            const p2Y = canvasHeight * cp.p2.y;
-            
-            // Draw checkpoint line
-            this.ctx.strokeStyle = 'rgba(0, 150, 255, 0.8)';
+            // Draw the checkpoint line
             this.ctx.lineWidth = 3;
             this.ctx.beginPath();
-            this.ctx.moveTo(p1X, p1Y);
-            this.ctx.lineTo(p2X, p2Y);
+            this.ctx.moveTo(p1.x, p1.y);
+            this.ctx.lineTo(p2.x, p2.y);
             this.ctx.stroke();
-            
-            // Draw checkpoint name at midpoint
-            const midX = (p1X + p2X) / 2;
-            const midY = (p1Y + p2Y) / 2;
-            this.ctx.fillStyle = 'white';
-            this.ctx.font = '12px Arial';
-            this.ctx.fillText(cp.name, midX + 5, midY - 5);
+            this.ctx.shadowBlur = 0;
         });
         
-        // Instructions
-        this.ctx.fillStyle = 'yellow';
-        this.ctx.font = '16px Arial';
-        this.ctx.fillText('DEBUG MODE: Click anywhere to get coordinates', 10, canvasHeight - 70);
-        this.ctx.fillText('Start: (0.80, 0.50) facing (0.72, 0.68)', 10, canvasHeight - 50);
-        this.ctx.fillText('Blue lines = checkpoint lines', 10, canvasHeight - 30);
-        this.ctx.fillText('Orange arrow = starting direction', 10, canvasHeight - 10);
+        // Draw start/finish line
+        const sf = {
+            p1: { x: this.startFinishLine.p1.x * canvasWidth,
+                  y: this.startFinishLine.p1.y * canvasHeight },
+            p2: { x: this.startFinishLine.p2.x * canvasWidth,
+                  y: this.startFinishLine.p2.y * canvasHeight }
+        };
+        
+        this.ctx.strokeStyle = 'white';
+        this.ctx.lineWidth = 4;
+        this.ctx.setLineDash([10, 10]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(sf.p1.x, sf.p1.y);
+        this.ctx.lineTo(sf.p2.x, sf.p2.y);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
     }
     
     showLeaderboard() {

@@ -5,6 +5,7 @@ interface Env {
 
 interface Member {
   playerId: string;
+  playerName?: string;
   websocket: WebSocket;
   joinedAt: number;
   lastHeartbeat: number;
@@ -77,7 +78,7 @@ export class RoomDO {
   private handleRoomMessage(websocket: WebSocket, message: any): void {
     switch (message.t) {
       case 'HELLO':
-        this.handlePlayerJoin(websocket, message.playerId);
+        this.handlePlayerJoin(websocket, message.playerId, message.playerName);
         break;
       case 'PING':
         this.handlePing(websocket);
@@ -93,7 +94,7 @@ export class RoomDO {
     }
   }
 
-  private handlePlayerJoin(websocket: WebSocket, playerId: string): void {
+  private handlePlayerJoin(websocket: WebSocket, playerId: string, playerName?: string): void {
     if (this.members.size >= this.maxPlayers) {
       this.sendMessage(websocket, { t: "KICK", reason: "Room full" });
       websocket.close();
@@ -102,6 +103,7 @@ export class RoomDO {
 
     const member: Member = {
       playerId,
+      playerName: playerName || playerId,
       websocket,
       joinedAt: Date.now(),
       lastHeartbeat: Date.now(),
@@ -166,7 +168,7 @@ export class RoomDO {
     // Get all players for final positions with proper ranking
     const allPlayers = Array.from(this.members.values()).map((m, index) => ({
       id: m.playerId,
-      name: `Player_${m.playerId.substring(0, 6)}`,
+      name: m.playerName || m.playerId,
       isBot: false,
       position: index + 1
     }));
@@ -188,7 +190,7 @@ export class RoomDO {
       t: "RACE_END",
       winner: {
         id: message.playerId,
-        name: `Player_${message.playerId.substring(0, 6)}`,
+        name: Array.from(this.members.values()).find(m => m.playerId === message.playerId)?.playerName || message.playerId,
         isBot: false
       },
       finalPositions: allPlayers,

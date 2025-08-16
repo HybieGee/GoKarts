@@ -684,11 +684,28 @@ class GoKartsGame {
         if (aboutBtn) {
             aboutBtn.addEventListener('click', () => this.showAbout());
         }
+
+        // Settings button handler
+        const settingsBtn = document.getElementById('settingsBtn');
+        if (settingsBtn) {
+            settingsBtn.addEventListener('click', () => this.showSettings());
+        }
         
-        // Add modal close handler
+        // Add modal close handlers
         const closeAboutModal = document.getElementById('closeAboutModal');
         if (closeAboutModal) {
             closeAboutModal.addEventListener('click', () => this.closeAbout());
+        }
+
+        const closeSettingsModal = document.getElementById('closeSettingsModal');
+        if (closeSettingsModal) {
+            closeSettingsModal.addEventListener('click', () => this.closeSettings());
+        }
+
+        // Save display name handler
+        const saveDisplayNameBtn = document.getElementById('saveDisplayNameBtn');
+        if (saveDisplayNameBtn) {
+            saveDisplayNameBtn.addEventListener('click', () => this.saveDisplayName());
         }
         
         // Close modal when clicking outside
@@ -697,6 +714,15 @@ class GoKartsGame {
             aboutModal.addEventListener('click', (e) => {
                 if (e.target === aboutModal) {
                     this.closeAbout();
+                }
+            });
+        }
+
+        const settingsModal = document.getElementById('settingsModal');
+        if (settingsModal) {
+            settingsModal.addEventListener('click', (e) => {
+                if (e.target === settingsModal) {
+                    this.closeSettings();
                 }
             });
         }
@@ -1102,7 +1128,7 @@ class GoKartsGame {
                     player.checkpointsPassed = [];
                     player.lastCrossTime = now;
                     
-                    if (player.lapCount >= this.maxLaps && !this.raceFinished) {
+                    if (player.lapCount > this.maxLaps && !this.raceFinished) {
                         this.finishRace(player);
                     }
                 }
@@ -1505,6 +1531,52 @@ class GoKartsGame {
         if (modal) {
             modal.classList.remove('active');
             document.body.style.overflow = ''; // Restore scrolling
+        }
+    }
+
+    showSettings() {
+        const modal = document.getElementById('settingsModal');
+        if (modal) {
+            // Load current display name if exists
+            const savedName = localStorage.getItem('gokarts_player_name') || '';
+            const displayNameInput = document.getElementById('displayNameInput');
+            if (displayNameInput) {
+                displayNameInput.value = savedName;
+            }
+            
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden'; // Prevent background scrolling
+        }
+    }
+
+    closeSettings() {
+        const modal = document.getElementById('settingsModal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = ''; // Restore scrolling
+        }
+    }
+
+    saveDisplayName() {
+        const displayNameInput = document.getElementById('displayNameInput');
+        if (displayNameInput) {
+            const newName = displayNameInput.value.trim();
+            if (newName && newName.length <= 20) {
+                localStorage.setItem('gokarts_player_name', newName);
+                this.playerName = newName; // Update current player name
+                console.log(`Display name saved: ${newName}`);
+                this.closeSettings();
+                
+                // Show confirmation
+                const originalText = document.getElementById('saveDisplayNameBtn').textContent;
+                document.getElementById('saveDisplayNameBtn').textContent = 'Saved!';
+                setTimeout(() => {
+                    const btn = document.getElementById('saveDisplayNameBtn');
+                    if (btn) btn.textContent = originalText;
+                }, 1500);
+            } else {
+                alert('Please enter a valid name (1-20 characters)');
+            }
         }
     }
 }

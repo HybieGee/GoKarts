@@ -1102,7 +1102,7 @@ class GoKartsGame {
                     player.checkpointsPassed = [];
                     player.lastCrossTime = now;
                     
-                    if (player.lapCount > this.maxLaps && !this.raceFinished) {
+                    if (player.lapCount >= this.maxLaps && !this.raceFinished) {
                         this.finishRace(player);
                     }
                 }
@@ -1181,7 +1181,8 @@ class GoKartsGame {
         // In multiplayer, notify server. In offline, handle locally
         if (this.isMultiplayer && this.socket) {
             // Send finish event regardless of who won
-            this.socket.emit('race-finish', {
+            this.socket.sendRoomMessage({
+                t: "RACE_FINISH",
                 playerId: winner.id,
                 finalTime: Date.now() - this.raceStartTime,
                 lapCount: winner.lapCount

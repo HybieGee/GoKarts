@@ -14,7 +14,8 @@
       "Bash(wrangler deploy:*)",
       "Bash(wrangler tail:*)",
       "Bash(curl:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(npx wrangler:*)"
     ],
     "deny": [],
     "ask": []

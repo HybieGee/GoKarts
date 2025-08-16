@@ -85,6 +85,9 @@ export class RoomDO {
       case 'STATE':
         this.handleGameState(websocket, message);
         break;
+      case 'RACE_FINISH':
+        this.handleRaceFinish(websocket, message);
+        break;
       default:
         console.warn('Unknown message type:', message.t);
     }
@@ -147,6 +150,44 @@ export class RoomDO {
         pos: message.pos
       });
     }
+  }
+
+  private handleRaceFinish(websocket: WebSocket, message: { playerId: string, finalTime: number, lapCount: number }): void {
+    const member = Array.from(this.members.values()).find(m => m.websocket === websocket);
+    if (!member || this.gameState !== 'racing') {
+      return;
+    }
+
+    console.log(`ROOM:RACE_FINISH room=${this.roomId} player=${message.playerId} lapCount=${message.lapCount}`);
+    
+    // Mark the race as ended and broadcast to all players
+    this.gameState = 'finished';
+    
+    // Get all players for final positions
+    const allPlayers = Array.from(this.members.values()).map(m => ({
+      id: m.playerId,
+      name: `Player_${m.playerId.substring(0, 6)}`,
+      isBot: false
+    }));
+
+    // Broadcast race end to all players
+    this.broadcast({
+      t: "RACE_END",
+      winner: {
+        id: message.playerId,
+        name: `Player_${message.playerId.substring(0, 6)}`,
+        isBot: false
+      },
+      finalPositions: allPlayers,
+      finalTime: message.finalTime
+    });
+
+    // Schedule room cleanup after results are shown
+    setTimeout(() => {
+      console.log(`ROOM:CLEANUP room=${this.roomId} reason=race_ended`);
+      this.broadcast({ t: "END", reason: "Race completed" });
+      // Room will be cleaned up when all players disconnect
+    }, 10000); // 10 seconds to show results
   }
 
   private startCountdown(): void {

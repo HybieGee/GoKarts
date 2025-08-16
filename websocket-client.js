@@ -207,6 +207,10 @@ class CloudflareGameClient {
                 console.warn(`🚨 Kicked from room: ${data.reason}`);
                 this.emit('kicked', data);
                 break;
+            case 'RACE_END':
+                console.log(`🏁 Race ended, winner: ${data.winner.name}`);
+                this.emit('race-end', data);
+                break;
             case 'END':
                 console.log(`🏁 Room ended: ${data.reason}`);
                 this.emit('room-end', data);

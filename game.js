@@ -19,7 +19,7 @@ class GoKartsGame {
             console.log('Could not load track image, using fallback design');
         };
         // Try to load custom track image
-        this.trackImage.src = 'map.png';
+        this.trackImage.src = 'Map.png';
         
         // Game data
         this.players = [];
@@ -258,11 +258,10 @@ class GoKartsGame {
             }
         }
         
-        // Move in the direction the kart is facing (adjust for sprite orientation)
-        // Subtract 90 degrees (Math.PI/2) because the kart sprite faces right, but we want forward to be up
-        const adjustedAngle = player.angle - Math.PI/2;
-        player.velocity.x = Math.cos(adjustedAngle) * player.speed;
-        player.velocity.y = Math.sin(adjustedAngle) * player.speed;
+        // Move in the direction the kart is facing 
+        // Start with kart facing upward (negative Y direction)
+        player.velocity.x = Math.sin(player.angle) * player.speed;
+        player.velocity.y = -Math.cos(player.angle) * player.speed;
         
         // Update position
         player.x += player.velocity.x;
@@ -464,8 +463,8 @@ class GoKartsGame {
     drawPlayer(player) {
         this.ctx.save();
         this.ctx.translate(player.x, player.y);
-        // Adjust rotation to match movement direction (add 90 degrees to sprite)
-        this.ctx.rotate(player.angle + Math.PI/2);
+        // Rotate sprite to match movement direction
+        this.ctx.rotate(player.angle);
         
         if (player.image && player.image.complete) {
             this.ctx.drawImage(player.image, -20, -30, 40, 60);

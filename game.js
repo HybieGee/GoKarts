@@ -101,11 +101,14 @@ class GoKartsGame {
         console.log(`🌐 Attempting to connect to multiplayer server at ${host}`);
         
         // Try Cloudflare Workers first, then Socket.io, then offline
+        console.log('🔍 Checking for createCloudflareClient:', typeof createCloudflareClient);
+        console.log('🔍 Checking for io:', typeof io);
+        
         if (typeof createCloudflareClient !== 'undefined') {
             console.log('🚀 Trying Cloudflare Workers connection...');
             this.socket = createCloudflareClient();
+            this.setupMultiplayerEvents(); // Setup events before connecting
             this.socket.connect('https://gokarts-multiplayer-prod.stealthbundlebot.workers.dev');
-            this.setupMultiplayerEvents();
         } else if (typeof io !== 'undefined') {
             console.log('📡 Trying Socket.io connection...');
             this.socket = io();
@@ -122,7 +125,9 @@ class GoKartsGame {
         if (!this.socket) return;
         
         this.socket.on('connect', () => {
-            console.log(`✅ Connected! Player ID: ${this.socket.id}`);
+            console.log(`✅ Connect event fired! Socket:`, this.socket);
+            console.log(`✅ Socket ID: ${this.socket.id}`);
+            console.log(`✅ Socket connected: ${this.socket.connected}`);
             this.playerId = this.socket.id;
             this.isMultiplayer = true;
             this.updateConnectionStatus(true);

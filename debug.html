@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoKarts Debug - Multiplayer Testing</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .debug-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #2a2a2a;
+        }
+        .status-good { color: #4ecdc4; }
+        .status-bad { color: #ff6b6b; }
+        .status-warning { color: #ffa500; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background: #4ecdc4;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover { background: #45a29e; }
+        #log {
+            background: #111;
+            border: 1px solid #333;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏎️ GoKarts Multiplayer Debug Tool</h1>
+    
+    <div class="debug-section">
+        <h3>Server Connection</h3>
+        <p>Status: <span id="connectionStatus" class="status-bad">Disconnected</span></p>
+        <p>Player ID: <span id="playerId">None</span></p>
+        <p>Room: <span id="roomInfo">Not in room</span></p>
+        <button onclick="connectToServer()">Connect to Server</button>
+        <button onclick="findMatch()">Find Match</button>
+        <button onclick="leaveRoom()">Leave Room</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>Debugging Checklist</h3>
+        <div id="checklist">
+            <p>🔍 Checking server availability...</p>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <h3>Live Console Log</h3>
+        <div id="log"></div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>Manual Tests</h3>
+        <button onclick="testBotCreation()">Test Bot Creation</button>
+        <button onclick="testPositionSync()">Test Position Sync</button>
+        <button onclick="window.open('index.html', '_blank')">Open Game in New Tab</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let socket = null;
+        let playerId = null;
+        let isConnected = false;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+
+        function updateStatus(status, className) {
+            const statusElement = document.getElementById('connectionStatus');
+            statusElement.textContent = status;
+            statusElement.className = className;
+        }
+
+        function updateChecklist() {
+            const checklist = document.getElementById('checklist');
+            let html = '';
+            
+            // Check if we're on the right port
+            const isCorrectPort = window.location.port === '3000' || window.location.href.includes(':3000');
+            html += `<p>${isCorrectPort ? '✅' : '❌'} Running on port 3000: ${isCorrectPort}</p>`;
+            
+            // Check Socket.io loading
+            const socketLoaded = typeof io !== 'undefined';
+            html += `<p>${socketLoaded ? '✅' : '❌'} Socket.io loaded: ${socketLoaded}</p>`;
+            
+            // Check connection
+            html += `<p>${isConnected ? '✅' : '❌'} Connected to server: ${isConnected}</p>`;
+            
+            // Instructions
+            if (!isCorrectPort) {
+                html += `<p class="status-warning">💡 Make sure to run: npm start and access via http://localhost:3000</p>`;
+            }
+            
+            checklist.innerHTML = html;
+        }
+
+        function connectToServer() {
+            log('🌐 Attempting to connect to server...');
+            
+            if (socket) {
+                socket.disconnect();
+            }
+            
+            socket = io();
+            
+            socket.on('connect', () => {
+                isConnected = true;
+                playerId = socket.id;
+                log(`✅ Connected! Player ID: ${playerId}`);
+                updateStatus('Connected', 'status-good');
+                document.getElementById('playerId').textContent = playerId;
+                updateChecklist();
+            });
+            
+            socket.on('disconnect', () => {
+                isConnected = false;
+                log('❌ Disconnected from server');
+                updateStatus('Disconnected', 'status-bad');
+                document.getElementById('playerId').textContent = 'None';
+                document.getElementById('roomInfo').textContent = 'Not in room';
+                updateChecklist();
+            });
+            
+            socket.on('connect_error', (error) => {
+                log(`❌ Connection error: ${error}`);
+                updateStatus('Connection Error', 'status-bad');
+                updateChecklist();
+            });
+            
+            socket.on('room-update', (data) => {
+                log(`🏠 Room update: ${data.playersCount}/${data.maxPlayers} players`);
+                document.getElementById('roomInfo').textContent = `${data.playersCount}/${data.maxPlayers} players`;
+            });
+            
+            socket.on('race-start', (data) => {
+                log(`🏁 Race starting with ${data.players.length} players:`);
+                data.players.forEach(p => {
+                    log(`  - ${p.name} (${p.isBot ? 'Bot' : 'Human'})`);
+                });
+            });
+            
+            socket.on('player-position', (data) => {
+                if (Math.random() < 0.1) { // Log 10% of position updates
+                    log(`📍 Position update: ${data.playerId.substr(0, 8)}... at (${data.x.toFixed(2)}, ${data.y.toFixed(2)})`);
+                }
+            });
+        }
+
+        function findMatch() {
+            if (!socket || !isConnected) {
+                log('❌ Not connected to server');
+                return;
+            }
+            
+            log('🔍 Looking for match...');
+            socket.emit('player-identify', {
+                name: `DebugPlayer_${Date.now().toString().slice(-4)}`,
+                wallet: null
+            });
+            socket.emit('find-match');
+        }
+
+        function leaveRoom() {
+            if (!socket || !isConnected) {
+                log('❌ Not connected to server');
+                return;
+            }
+            
+            log('🚪 Leaving room...');
+            socket.emit('leave-room');
+            document.getElementById('roomInfo').textContent = 'Not in room';
+        }
+
+        function testBotCreation() {
+            log('🤖 Testing bot creation - start a match to see bots in action');
+            findMatch();
+        }
+
+        function testPositionSync() {
+            if (!socket || !isConnected) {
+                log('❌ Not connected to server');
+                return;
+            }
+            
+            log('📡 Testing position synchronization...');
+            // Simulate position updates
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    socket.emit('player-update', {
+                        x: Math.random(),
+                        y: Math.random(),
+                        angle: Math.random() * Math.PI * 2,
+                        lapCount: 1,
+                        nextCheckpoint: 0,
+                        speed: Math.random() * 5
+                    });
+                    log(`📤 Sent position update ${i + 1}/5`);
+                }, i * 200);
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // Initialize
+        updateChecklist();
+        
+        // Auto-connect if on correct port
+        if (window.location.port === '3000' || window.location.href.includes(':3000')) {
+            setTimeout(connectToServer, 1000);
+        }
+    </script>
+</body>
+</html>

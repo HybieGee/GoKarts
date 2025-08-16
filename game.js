@@ -83,12 +83,15 @@ class GoKartsGame {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host || 'localhost:3000';
         
+        console.log(`🌐 Attempting to connect to multiplayer server at ${host}`);
+        
         if (typeof io !== 'undefined') {
             this.socket = io();
             this.setupMultiplayerEvents();
-            console.log('🌐 Connecting to multiplayer server...');
+            console.log('📡 Socket.io loaded, initializing connection...');
         } else {
-            console.log('⚠️ Socket.io not loaded, running in offline mode');
+            console.error('❌ Socket.io not loaded! Make sure server is running on port 3000');
+            console.log('💡 Try: npm start');
         }
     }
     
@@ -96,9 +99,10 @@ class GoKartsGame {
         if (!this.socket) return;
         
         this.socket.on('connect', () => {
-            console.log('✅ Connected to multiplayer server');
+            console.log(`✅ Connected to multiplayer server! Player ID: ${this.socket.id}`);
             this.playerId = this.socket.id;
             this.isMultiplayer = true;
+            this.updateConnectionStatus(true);
             
             // Get player name
             this.requestPlayerName();
@@ -107,6 +111,18 @@ class GoKartsGame {
         this.socket.on('disconnect', () => {
             console.log('❌ Disconnected from server');
             this.isMultiplayer = false;
+            this.updateConnectionStatus(false);
+            // Show user they're offline
+            if (this.currentScreen === 'waitingScreen') {
+                this.showScreen('mainMenu');
+                alert('Lost connection to server. Please refresh and try again.');
+            }
+        });
+        
+        this.socket.on('connect_error', (error) => {
+            console.error('❌ Connection error:', error);
+            this.isMultiplayer = false;
+            this.updateConnectionStatus(false);
         });
         
         this.socket.on('room-update', (data) => {
@@ -115,11 +131,15 @@ class GoKartsGame {
         });
         
         this.socket.on('race-start', (data) => {
-            console.log('🏁 Race starting with players:', data.players);
+            console.log(`🏁 Race starting with ${data.players.length} players:`, data.players);
             this.startMultiplayerRace(data);
         });
         
         this.socket.on('player-position', (data) => {
+            // Debug: Log bot positions occasionally
+            if (data.playerId.startsWith('bot_') && Math.random() < 0.01) {
+                console.log('🤖 Bot position update:', data.playerId, data.x, data.y);
+            }
             this.updateRemotePlayerPosition(data);
         });
         
@@ -236,12 +256,26 @@ class GoKartsGame {
             const canvasWidth = this.canvas.width || 1200;
             const canvasHeight = this.canvas.height || 800;
             
-            // Interpolate position for smooth movement
-            player.x = canvasWidth * data.x;
-            player.y = canvasHeight * data.y;
-            player.angle = data.angle;
+            // Target positions from server
+            const targetX = canvasWidth * data.x;
+            const targetY = canvasHeight * data.y;
+            
+            // Smooth interpolation for better movement
+            const lerpFactor = 0.3; // Adjust for smoothness vs responsiveness
+            player.x = player.x + (targetX - player.x) * lerpFactor;
+            player.y = player.y + (targetY - player.y) * lerpFactor;
+            
+            // Angle interpolation
+            let targetAngle = data.angle;
+            let angleDiff = targetAngle - player.angle;
+            while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+            while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+            player.angle += angleDiff * 0.3;
+            
+            // Update game state
             player.lapCount = data.lapCount;
             player.nextCheckpoint = data.nextCheckpoint;
+            player.speed = data.speed || 0;
         }
     }
     
@@ -314,6 +348,19 @@ class GoKartsGame {
         this.globalLeaderboard = leaderboardData;
         if (this.currentScreen === 'leaderboardScreen') {
             this.updateLeaderboardDisplay();
+        }
+    }
+    
+    updateConnectionStatus(isConnected) {
+        const statusElement = document.getElementById('connectionStatus');
+        if (statusElement) {
+            if (isConnected) {
+                statusElement.textContent = '🟢 Online';
+                statusElement.style.color = '#4ecdc4';
+            } else {
+                statusElement.textContent = '🔴 Offline';
+                statusElement.style.color = '#ff6b6b';
+            }
         }
     }
     

@@ -358,7 +358,7 @@ function findOrCreateRoom() {
 
 // Socket.io connections
 io.on('connection', (socket) => {
-    console.log('Player connected:', socket.id);
+    console.log(`🔌 Player connected: ${socket.id} (Total: ${io.engine.clientsCount})`);
     
     // Store player info
     players.set(socket.id, {
@@ -405,7 +405,7 @@ io.on('connection', (socket) => {
             if (room.canStartRace()) {
                 setTimeout(() => {
                     if (room.startRace()) {
-                        // Combine human players and bots for race start
+                        // Combine human players and bots for race start (bots are created in startRace)
                         const allRacers = [
                             ...room.players.map(p => ({
                                 id: p.id,
@@ -421,11 +421,12 @@ io.on('connection', (socket) => {
                             }))
                         ];
 
+                        console.log(`🏁 Race starting in room ${room.id} with ${room.players.length} humans and ${room.bots.length} bots`);
+
                         io.to(room.id).emit('race-start', {
                             players: allRacers,
                             startTime: room.raceStartTime
                         });
-                        console.log(`Race started in room ${room.id}`);
                     }
                 }, 3000); // 3 second countdown
             }

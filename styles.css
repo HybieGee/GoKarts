@@ -405,8 +405,21 @@ body {
 .quick-actions {
     display: flex;
     justify-content: center;
+    align-items: center;
     gap: 1rem;
     margin-top: 1rem;
+}
+
+.connection-status {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    padding: 0.6rem 1.2rem;
+    border-radius: 25px;
+    color: white;
+    backdrop-filter: blur(10px);
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
 }
 
 .quick-btn {

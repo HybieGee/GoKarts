@@ -373,8 +373,8 @@ class GoKartsGame {
                 angle: playerData.position.angle,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
-                maxSpeed: isLocal ? 6 : 3.5,
-                acceleration: isLocal ? 0.4 : 0.3,
+                maxSpeed: isLocal ? 4 : 4,  // Same speed for all players
+                acceleration: isLocal ? 0.3 : 0.3,  // Same acceleration
                 deceleration: 0.6,
                 friction: 0.85,
                 turnSpeed: 0.08,
@@ -454,13 +454,13 @@ class GoKartsGame {
             
             // If the distance is too large, snap to prevent teleporting appearance
             // This helps when players join mid-race or there's network lag
-            if (distance > 100) {
+            if (distance > 150) {  // Increased threshold to reduce snapping
                 player.x = targetX;
                 player.y = targetY;
                 player.angle = data.angle;
             } else {
-                // Use more aggressive interpolation for closer positions
-                const lerpFactor = 0.6; // Increased from 0.3 for more responsive movement
+                // Moderate interpolation to prevent jittery movement
+                const lerpFactor = 0.3; // Reduced for more realistic movement
                 player.x = player.x + (targetX - player.x) * lerpFactor;
                 player.y = player.y + (targetY - player.y) * lerpFactor;
                 
@@ -469,13 +469,14 @@ class GoKartsGame {
                 let angleDiff = targetAngle - player.angle;
                 while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                 while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                player.angle += angleDiff * 0.6; // More responsive angle updates
+                player.angle += angleDiff * 0.3; // Slower angle updates for realism
             }
             
             // Update game state
             player.lapCount = data.lapCount;
             player.nextCheckpoint = data.nextCheckpoint;
-            player.speed = data.speed || 0;
+            // Reduce apparent speed of remote players for visual balance
+            player.speed = (data.speed || 0) * 0.8;
             
             // Store timestamp for prediction
             player.lastUpdateTime = Date.now();

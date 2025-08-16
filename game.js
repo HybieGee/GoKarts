@@ -77,6 +77,21 @@ class GoKartsGame {
         
         
     }
+
+    buildPlayersFromRoom(roomData) {
+        // Convert room player IDs to player objects for the race
+        return roomData.players.map((playerId, index) => ({
+            id: playerId,
+            name: playerId === this.playerId ? this.playerName : `Player ${index + 1}`,
+            position: { 
+                x: 0.8, 
+                y: 0.5, 
+                angle: 0,
+                lapCount: 1,
+                nextCheckpoint: 0
+            }
+        }));
+    }
     
     initializeMultiplayer() {
         // Connect to multiplayer server
@@ -152,22 +167,35 @@ class GoKartsGame {
         // Handle room welcome
         this.socket.on('welcome', (data) => {
             console.log(`🎉 Welcome to room! Players: ${data.players.length}`);
+            this.roomData = data; // Store room data for race start
             this.updateWaitingScreenText('In Race Room', `Players: ${data.players.length}/5`);
         });
         
         // Handle race countdown
         this.socket.on('race-countdown', (data) => {
             console.log(`🚀 Race starting! Countdown: ${data.countdown}`);
-            this.startMultiplayerRace({ players: [], startTime: Date.now() + (data.countdown * 1000) });
+            // Use stored room data to get current players
+            const players = this.roomData ? this.buildPlayersFromRoom(this.roomData) : [];
+            this.startMultiplayerRace({ players, startTime: Date.now() + (data.countdown * 1000) });
         });
         
         // Handle peer events
         this.socket.on('peer-join', (data) => {
             console.log(`👤 Player ${data.playerId} joined room`);
+            // Update room data with new player
+            if (this.roomData && !this.roomData.players.includes(data.playerId)) {
+                this.roomData.players.push(data.playerId);
+                this.updateWaitingScreenText('In Race Room', `Players: ${this.roomData.players.length}/5`);
+            }
         });
         
         this.socket.on('peer-leave', (data) => {
             console.log(`👋 Player ${data.playerId} left room`);
+            // Update room data - remove player
+            if (this.roomData) {
+                this.roomData.players = this.roomData.players.filter(id => id !== data.playerId);
+                this.updateWaitingScreenText('In Race Room', `Players: ${this.roomData.players.length}/5`);
+            }
         });
         
         this.socket.on('peer-state', (data) => {

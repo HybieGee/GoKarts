@@ -3,7 +3,7 @@ class CloudflareGameClient {
     constructor() {
         this.roomWs = null;
         this.isConnected = false;
-        this.playerId = null;
+        this._playerId = null;
         this.eventHandlers = new Map();
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
@@ -16,25 +16,25 @@ class CloudflareGameClient {
 
     connect(baseUrl = 'https://gokarts-multiplayer-prod.stealthbundlebot.workers.dev') {
         this.baseUrl = baseUrl;
-        this.playerId = this.generateId();
+        this._playerId = this.generateId();
         this.isConnected = true;
         this.currentState = 'connected';
-        console.log(`✅ Client initialized with base URL: ${baseUrl}, Player ID: ${this.playerId}`);
+        console.log(`✅ Client initialized with base URL: ${baseUrl}, Player ID: ${this._playerId}`);
         this.emit('connect');
     }
 
     // Join matchmaking queue using REST API
     async joinQueue() {
-        if (!this.playerId) {
+        if (!this._playerId) {
             throw new Error('Player ID not set');
         }
 
         try {
-            console.log(`🏁 Joining queue with player ID: ${this.playerId}`);
+            console.log(`🏁 Joining queue with player ID: ${this._playerId}`);
             const response = await fetch(`${this.baseUrl}/api/queue/join`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ playerId: this.playerId })
+                body: JSON.stringify({ playerId: this._playerId })
             });
 
             const result = await response.json();
@@ -67,7 +67,7 @@ class CloudflareGameClient {
 
         this.pollInterval = setInterval(async () => {
             try {
-                const response = await fetch(`${this.baseUrl}/api/queue/poll?playerId=${this.playerId}`);
+                const response = await fetch(`${this.baseUrl}/api/queue/poll?playerId=${this._playerId}`);
                 const result = await response.json();
                 console.log('Poll result:', result);
 
@@ -104,7 +104,7 @@ class CloudflareGameClient {
             await fetch(`${this.baseUrl}/api/queue/cancel`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ playerId: this.playerId })
+                body: JSON.stringify({ playerId: this._playerId })
             });
             this.stopPolling();
             this.currentState = 'connected';
@@ -126,7 +126,7 @@ class CloudflareGameClient {
                 this.currentState = 'in-room';
                 
                 // Send HELLO message
-                this.sendRoomMessage({ t: "HELLO", playerId: this.playerId });
+                this.sendRoomMessage({ t: "HELLO", playerId: this._playerId });
                 
                 // Start heartbeat
                 this.startHeartbeat();
@@ -293,7 +293,11 @@ class CloudflareGameClient {
 
     // Socket.io compatibility methods
     get id() {
-        return this.playerId;
+        return this._playerId;
+    }
+
+    get playerId() {
+        return this._playerId;
     }
 
     get connected() {

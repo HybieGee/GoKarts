@@ -258,9 +258,11 @@ class GoKartsGame {
             }
         }
         
-        // Move in the direction the kart is facing
-        player.velocity.x = Math.cos(player.angle) * player.speed;
-        player.velocity.y = Math.sin(player.angle) * player.speed;
+        // Move in the direction the kart is facing (adjust for sprite orientation)
+        // Subtract 90 degrees (Math.PI/2) because the kart sprite faces right, but we want forward to be up
+        const adjustedAngle = player.angle - Math.PI/2;
+        player.velocity.x = Math.cos(adjustedAngle) * player.speed;
+        player.velocity.y = Math.sin(adjustedAngle) * player.speed;
         
         // Update position
         player.x += player.velocity.x;
@@ -462,14 +464,18 @@ class GoKartsGame {
     drawPlayer(player) {
         this.ctx.save();
         this.ctx.translate(player.x, player.y);
-        this.ctx.rotate(player.angle);
+        // Adjust rotation to match movement direction (add 90 degrees to sprite)
+        this.ctx.rotate(player.angle + Math.PI/2);
         
         if (player.image && player.image.complete) {
             this.ctx.drawImage(player.image, -20, -30, 40, 60);
         } else {
-            // Fallback rectangle
+            // Fallback rectangle - draw pointing upward
             this.ctx.fillStyle = player.isLocal ? '#4ecdc4' : '#ff6b6b';
             this.ctx.fillRect(-15, -20, 30, 40);
+            // Add direction indicator
+            this.ctx.fillStyle = 'white';
+            this.ctx.fillRect(-3, -25, 6, 10);
         }
         
         this.ctx.restore();

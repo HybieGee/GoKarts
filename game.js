@@ -1179,7 +1179,8 @@ class GoKartsGame {
         this.gameState = 'results';
         
         // In multiplayer, notify server. In offline, handle locally
-        if (this.isMultiplayer && winner.isLocal && this.socket) {
+        if (this.isMultiplayer && this.socket) {
+            // Send finish event regardless of who won
             this.socket.emit('race-finish', {
                 playerId: winner.id,
                 finalTime: Date.now() - this.raceStartTime,

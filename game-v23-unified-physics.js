@@ -1,7 +1,8 @@
-// GoKarts Racing Game - Cache Bust v21 - 2024-12-16-21:00
-// EXTREME SPEED DEBUG: maxSpeed=1, acceleration=0.08
-const GAME_VERSION = 'v21-extreme-debug-2024-12-16-21:05';
+// GoKarts Racing Game - UNIFIED PHYSICS v23 - 2024-12-16-21:10
+// FIXED: All players now use same physics system (local and remote)
+const GAME_VERSION = 'v23-unified-physics-2024-12-16-21:10';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
+console.log('⚡ UNIFIED PHYSICS: All players use same physics system');
 console.log('📊 EXPECTED PHYSICS: maxSpeed=1, acceleration=0.08');
 
 class GoKartsGame {

@@ -12,8 +12,10 @@ class GoKartsGame {
         
         // Track image
         this.trackImage = new Image();
+        this.trackImageCanvas = null;
+        this.trackImageData = null;
         this.trackImage.onload = () => {
-            console.log('Track image loaded successfully');
+            console.log('Track image loaded successfully');\n            // Create a canvas to read pixel data for collision detection\n            this.trackImageCanvas = document.createElement('canvas');\n            this.trackImageCanvas.width = this.trackImage.width;\n            this.trackImageCanvas.height = this.trackImage.height;\n            const ctx = this.trackImageCanvas.getContext('2d');\n            ctx.drawImage(this.trackImage, 0, 0);\n            this.trackImageData = ctx.getImageData(0, 0, this.trackImage.width, this.trackImage.height);
         };
         this.trackImage.onerror = () => {
             console.log('Could not load track image, using fallback design');
@@ -192,7 +194,7 @@ class GoKartsGame {
             prevX: startPositions[0].x,
             prevY: startPositions[0].y,
             lapStarted: false,
-            lastCrossTime: 0
+            lastCrossTime: 0,\n            awayFromStart: false
         };
         this.players.push(this.localPlayer);
         
@@ -221,7 +223,7 @@ class GoKartsGame {
                 prevX: startPositions[i].x,
                 prevY: startPositions[i].y,
                 lapStarted: false,
-                lastCrossTime: 0
+                lastCrossTime: 0,\n            awayFromStart: false
             });
         }
         
@@ -302,8 +304,8 @@ class GoKartsGame {
         player.velocity.y = -Math.cos(player.angle) * player.speed;
         
         // Update position
-        player.x += player.velocity.x;
-        player.y += player.velocity.y;
+        // Calculate new position and check collision\n        const newX = player.x + player.velocity.x;\n        const newY = player.y + player.velocity.y;\n        \n        // Check if new position is on track\n        if (this.isOnTrack(newX, newY)) {\n            player.x = newX;
+            player.y = newY;\n        } else {\n            // If hit wall, reduce speed significantly\n            player.speed *= 0.3;\n        }
         
         // Keep player on screen
         player.x = Math.max(30, Math.min(this.canvas.width - 30, player.x));
@@ -365,14 +367,14 @@ class GoKartsGame {
                      y: this.startFinishLine.p2.y * this.canvas.height }
             };
             
-            // Check start/finish line crossing
+            // Check if player has moved away from start/finish area\n            const distFromStart = Math.sqrt(\n                Math.pow(player.x - sfLine.p1.x, 2) + Math.pow(player.y - sfLine.p1.y, 2)\n            );\n            if (distFromStart > 100) { // 100 pixels away from start\n                player.awayFromStart = true;\n            }\n            \n            // Check start/finish line crossing
             if (this.segmentsIntersect(movementSegment.p1, movementSegment.p2, sfLine.p1, sfLine.p2)) {
                 if (!player.lapStarted) {
                     // First time crossing S/F - start the lap
                     player.lapStarted = true;
                     player.nextCheckpoint = 0;
                     player.checkpointsPassed = [];
-                } else if (player.nextCheckpoint === this.checkpointLines.length) {
+                } else if (player.nextCheckpoint === this.checkpointLines.length && player.awayFromStart) {
                     // Completed all checkpoints - valid lap!
                     player.lapCount++;
                     player.nextCheckpoint = 0;
@@ -433,7 +435,7 @@ class GoKartsGame {
         if (Math.abs(d3) < 1e-6 && onSegment(b1, a1, b2)) return true;
         if (Math.abs(d4) < 1e-6 && onSegment(b1, a2, b2)) return true;
         
-        return false;
+        return false;\n    }\n    \n    isOnTrack(x, y) {\n        // Check if position is on the track (not on grass)\n        if (!this.trackImageData) return true; // If no collision data, allow movement\n        \n        // Convert canvas coordinates to image coordinates\n        const imgX = Math.floor((x / this.canvas.width) * this.trackImage.width);\n        const imgY = Math.floor((y / this.canvas.height) * this.trackImage.height);\n        \n        // Bounds check\n        if (imgX < 0 || imgX >= this.trackImage.width || imgY < 0 || imgY >= this.trackImage.height) {\n            return false;\n        }\n        \n        // Get pixel data (RGBA)\n        const pixelIndex = (imgY * this.trackImage.width + imgX) * 4;\n        const r = this.trackImageData.data[pixelIndex];\n        const g = this.trackImageData.data[pixelIndex + 1];\n        const b = this.trackImageData.data[pixelIndex + 2];\n        \n        // Green grass is roughly RGB(76, 175, 80) - check if it's NOT green\n        // Track (dark gray) and borders (red/white) should allow movement\n        const isGreen = g > r + 50 && g > b + 50; // Simple green detection\n        return !isGreen;
     }
     
     updateRacePositions() {

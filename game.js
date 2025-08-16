@@ -29,20 +29,22 @@ class GoKartsGame {
         this.raceStartTime = 0;
         this.raceFinished = false;
         
-        // Checkpoint zones - invisible areas that detect when players pass through
-        this.checkpointZones = [
-            { x: 0.89, y: 0.72, radius: 0.06 },  // CP1: after start
-            { x: 0.83, y: 0.66, radius: 0.06 },  // CP2: right curve
-            { x: 0.33, y: 0.81, radius: 0.06 },  // CP3: bottom left
-            { x: 0.35, y: 0.43, radius: 0.06 },  // CP4: top left
-            { x: 0.45, y: 0.36, radius: 0.06 },  // CP5: top center
-            { x: 0.56, y: 0.49, radius: 0.06 },  // CP6: middle
-            { x: 0.67, y: 0.65, radius: 0.06 },  // CP7: right middle
-            { x: 0.77, y: 0.44, radius: 0.06 },  // CP8: upper right
-            { x: 0.94, y: 0.55, radius: 0.06 }   // CP9: before finish
+        // Checkpoint lines - actual line segments across the track
+        // Using percentages for responsive scaling
+        this.checkpointLines = [
+            { p1: { x: 0.86, y: 0.70 }, p2: { x: 0.86, y: 0.76 } },  // CP1: after start
+            { p1: { x: 0.80, y: 0.64 }, p2: { x: 0.84, y: 0.67 } },  // CP2: right curve
+            { p1: { x: 0.31, y: 0.77 }, p2: { x: 0.31, y: 0.83 } },  // CP3: bottom left
+            { p1: { x: 0.32, y: 0.42 }, p2: { x: 0.37, y: 0.42 } },  // CP4: top left
+            { p1: { x: 0.44, y: 0.34 }, p2: { x: 0.44, y: 0.39 } },  // CP5: top center
+            { p1: { x: 0.54, y: 0.47 }, p2: { x: 0.59, y: 0.47 } },  // CP6: middle
+            { p1: { x: 0.66, y: 0.62 }, p2: { x: 0.66, y: 0.67 } },  // CP7: right middle
+            { p1: { x: 0.75, y: 0.42 }, p2: { x: 0.75, y: 0.47 } },  // CP8: upper right
+            { p1: { x: 0.91, y: 0.53 }, p2: { x: 0.95, y: 0.53 } }   // CP9: before finish
         ];
         
-        this.checkpoints = [];
+        // Start/finish line
+        this.startFinishLine = { p1: { x: 0.87, y: 0.77 }, p2: { x: 0.92, y: 0.80 } };
         
         // Leaderboard data (stored locally for now)
         this.leaderboard = this.loadLeaderboard();
@@ -185,8 +187,12 @@ class GoKartsGame {
             position: 1,
             isLocal: true,
             image: this.playerImages[0],
+            nextCheckpoint: 0,
             checkpointsPassed: [],
-            lastCheckpoint: -1
+            prevX: startPositions[0].x,
+            prevY: startPositions[0].y,
+            lapStarted: false,
+            lastCrossTime: 0
         };
         this.players.push(this.localPlayer);
         
@@ -210,8 +216,12 @@ class GoKartsGame {
                 isLocal: false,
                 image: this.playerImages[i],
                 aiTarget: { x: 300, y: 150 }, // First turn target
+                nextCheckpoint: 0,
                 checkpointsPassed: [],
-                lastCheckpoint: -1
+                prevX: startPositions[i].x,
+                prevY: startPositions[i].y,
+                lapStarted: false,
+                lastCrossTime: 0
             });
         }
         
@@ -244,9 +254,6 @@ class GoKartsGame {
         
         // Update race positions
         this.updateRacePositions();
-        
-        // Check for race completion
-        this.checkRaceCompletion();
         
         // Update UI
         this.updateRaceUI();
@@ -334,60 +341,106 @@ class GoKartsGame {
     }
     
     updateCheckpoints() {
+        const now = Date.now();
+        
         this.players.forEach(player => {
-            this.checkpointZones.forEach((zone, index) => {
-                // Check if player is in checkpoint zone
-                const zoneX = zone.x * this.canvas.width;
-                const zoneY = zone.y * this.canvas.height;
-                const zoneRadius = zone.radius * this.canvas.width;
-                
-                const dx = player.x - zoneX;
-                const dy = player.y - zoneY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance < zoneRadius) {
-                    // Check if this is the next checkpoint in sequence
-                    const expectedNext = player.lastCheckpoint + 1;
+            // Skip if cooldown hasn't expired (prevent double triggers)
+            if (now - player.lastCrossTime < 150) {
+                player.prevX = player.x;
+                player.prevY = player.y;
+                return;
+            }
+            
+            // Create movement segment from previous to current position
+            const movementSegment = {
+                p1: { x: player.prevX, y: player.prevY },
+                p2: { x: player.x, y: player.y }
+            };
+            
+            // Convert start/finish line to canvas coordinates
+            const sfLine = {
+                p1: { x: this.startFinishLine.p1.x * this.canvas.width, 
+                     y: this.startFinishLine.p1.y * this.canvas.height },
+                p2: { x: this.startFinishLine.p2.x * this.canvas.width,
+                     y: this.startFinishLine.p2.y * this.canvas.height }
+            };
+            
+            // Check start/finish line crossing
+            if (this.segmentsIntersect(movementSegment.p1, movementSegment.p2, sfLine.p1, sfLine.p2)) {
+                if (!player.lapStarted) {
+                    // First time crossing S/F - start the lap
+                    player.lapStarted = true;
+                    player.nextCheckpoint = 0;
+                    player.checkpointsPassed = [];
+                } else if (player.nextCheckpoint === this.checkpointLines.length) {
+                    // Completed all checkpoints - valid lap!
+                    player.lapCount++;
+                    player.nextCheckpoint = 0;
+                    player.checkpointsPassed = [];
+                    player.lastCrossTime = now;
                     
-                    if (index === expectedNext && !player.checkpointsPassed.includes(index)) {
-                        player.checkpointsPassed.push(index);
-                        player.lastCheckpoint = index;
-                        
-                        // If completed all checkpoints, ready for lap completion
-                        if (player.checkpointsPassed.length === this.checkpointZones.length) {
-                            player.readyForLap = true;
-                        }
+                    if (player.lapCount > this.maxLaps && !this.raceFinished) {
+                        this.finishRace(player);
                     }
                 }
-            });
+            }
+            
+            // Check next checkpoint crossing
+            if (player.lapStarted && player.nextCheckpoint < this.checkpointLines.length) {
+                const checkpoint = this.checkpointLines[player.nextCheckpoint];
+                const cpLine = {
+                    p1: { x: checkpoint.p1.x * this.canvas.width,
+                         y: checkpoint.p1.y * this.canvas.height },
+                    p2: { x: checkpoint.p2.x * this.canvas.width,
+                         y: checkpoint.p2.y * this.canvas.height }
+                };
+                
+                if (this.segmentsIntersect(movementSegment.p1, movementSegment.p2, cpLine.p1, cpLine.p2)) {
+                    player.checkpointsPassed.push(player.nextCheckpoint);
+                    player.nextCheckpoint++;
+                    player.lastCrossTime = now;
+                }
+            }
+            
+            // Update previous position for next frame
+            player.prevX = player.x;
+            player.prevY = player.y;
         });
     }
     
-    lineIntersectsCircle(x1, y1, x2, y2, cx, cy, radius) {
-        // Check if a line segment intersects with a circle
-        const dx = x2 - x1;
-        const dy = y2 - y1;
-        const fx = x1 - cx;
-        const fy = y1 - cy;
+    segmentsIntersect(a1, a2, b1, b2) {
+        // Check if two line segments intersect
+        const cross = (p, q, r) => (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
         
-        const a = dx * dx + dy * dy;
-        const b = 2 * (fx * dx + fy * dy);
-        const c = (fx * fx + fy * fy) - radius * radius;
+        const d1 = cross(a1, a2, b1);
+        const d2 = cross(a1, a2, b2);
+        const d3 = cross(b1, b2, a1);
+        const d4 = cross(b1, b2, a2);
         
-        const discriminant = b * b - 4 * a * c;
-        if (discriminant < 0) return false;
+        if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && 
+            ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+            return true;
+        }
         
-        const t1 = (-b - Math.sqrt(discriminant)) / (2 * a);
-        const t2 = (-b + Math.sqrt(discriminant)) / (2 * a);
+        // Handle collinear cases
+        const onSegment = (p, q, r) => {
+            return Math.min(p.x, r.x) <= q.x && q.x <= Math.max(p.x, r.x) &&
+                   Math.min(p.y, r.y) <= q.y && q.y <= Math.max(p.y, r.y);
+        };
         
-        return (t1 >= 0 && t1 <= 1) || (t2 >= 0 && t2 <= 1);
+        if (Math.abs(d1) < 1e-6 && onSegment(a1, b1, a2)) return true;
+        if (Math.abs(d2) < 1e-6 && onSegment(a1, b2, a2)) return true;
+        if (Math.abs(d3) < 1e-6 && onSegment(b1, a1, b2)) return true;
+        if (Math.abs(d4) < 1e-6 && onSegment(b1, a2, b2)) return true;
+        
+        return false;
     }
     
     updateRacePositions() {
         // Calculate position based on laps and checkpoints
         this.players.forEach(player => {
             const lapProgress = player.lapCount - 1;
-            const checkpointProgress = player.checkpointsPassed.length / this.checkpoints.length;
+            const checkpointProgress = player.nextCheckpoint / Math.max(1, this.checkpointLines.length);
             player.raceProgress = lapProgress + checkpointProgress;
         });
         
@@ -568,34 +621,57 @@ class GoKartsGame {
     }
     
     drawCheckpoints() {
-        // Optional: Show checkpoint numbers for debugging
-        if (false) { // Set to true to see checkpoint zones
-            this.checkpointZones.forEach((zone, index) => {
-                const x = zone.x * this.canvas.width;
-                const y = zone.y * this.canvas.height;
-                const radius = zone.radius * this.canvas.width;
-                
-                // Draw semi-transparent zone circle
-                this.ctx.beginPath();
-                this.ctx.arc(x, y, radius, 0, Math.PI * 2);
-                
-                if (this.localPlayer && this.localPlayer.checkpointsPassed.includes(index)) {
-                    this.ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
-                } else if (this.localPlayer && this.localPlayer.lastCheckpoint + 1 === index) {
-                    this.ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+        // Draw checkpoint lines
+        this.checkpointLines.forEach((checkpoint, index) => {
+            const p1 = { 
+                x: checkpoint.p1.x * this.canvas.width,
+                y: checkpoint.p1.y * this.canvas.height 
+            };
+            const p2 = { 
+                x: checkpoint.p2.x * this.canvas.width,
+                y: checkpoint.p2.y * this.canvas.height 
+            };
+            
+            // Set color based on checkpoint status
+            if (this.localPlayer) {
+                if (index < this.localPlayer.nextCheckpoint) {
+                    this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.6)'; // Green - passed
+                } else if (index === this.localPlayer.nextCheckpoint) {
+                    this.ctx.strokeStyle = 'rgba(255, 255, 0, 1)'; // Yellow - next
+                    this.ctx.shadowColor = 'yellow';
+                    this.ctx.shadowBlur = 5;
                 } else {
-                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)'; // Red - upcoming
                 }
-                
-                this.ctx.fill();
-                
-                // Draw checkpoint number
-                this.ctx.fillStyle = 'white';
-                this.ctx.font = 'bold 20px Arial';
-                this.ctx.textAlign = 'center';
-                this.ctx.fillText(String(index + 1), x, y + 7);
-            });
-        }
+            } else {
+                this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.4)';
+            }
+            
+            // Draw the checkpoint line
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.moveTo(p1.x, p1.y);
+            this.ctx.lineTo(p2.x, p2.y);
+            this.ctx.stroke();
+            this.ctx.shadowBlur = 0;
+        });
+        
+        // Draw start/finish line
+        const sf = {
+            p1: { x: this.startFinishLine.p1.x * this.canvas.width,
+                  y: this.startFinishLine.p1.y * this.canvas.height },
+            p2: { x: this.startFinishLine.p2.x * this.canvas.width,
+                  y: this.startFinishLine.p2.y * this.canvas.height }
+        };
+        
+        this.ctx.strokeStyle = 'white';
+        this.ctx.lineWidth = 4;
+        this.ctx.setLineDash([10, 10]);
+        this.ctx.beginPath();
+        this.ctx.moveTo(sf.p1.x, sf.p1.y);
+        this.ctx.lineTo(sf.p2.x, sf.p2.y);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
     }
     
     drawPlayer(player) {

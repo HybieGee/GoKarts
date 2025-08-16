@@ -34,8 +34,8 @@ const GAME_CONFIG = {
         
         // Social Links
         socials: {
-            twitter: "https://twitter.com/gokarts",
-            website: "https://gokarts.game"
+            twitter: "https://twitter.com/gokartsonline_",
+            website: "https://gokarts.online"
         }
     },
     

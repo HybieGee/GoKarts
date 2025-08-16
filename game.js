@@ -349,8 +349,9 @@ class GoKartsGame {
     
     startMultiplayerRace(data) {
         this.showScreen('gameScreen');
-        this.gameState = 'racing';
+        this.gameState = 'countdown';  // Start with countdown state
         this.raceStartTime = data.startTime;
+        this.countdownValue = 3;  // Start countdown at 3
         
         // Initialize players
         this.players = [];
@@ -392,7 +393,33 @@ class GoKartsGame {
         });
         
         this.raceFinished = false;
+        
+        // Start countdown sequence
+        this.startCountdown();
         this.gameLoop();
+    }
+    
+    startCountdown() {
+        // Countdown sequence: 3, 2, 1, GO!
+        const countdownSequence = () => {
+            if (this.countdownValue > 0) {
+                this.countdownValue--;
+                setTimeout(countdownSequence, 1000);
+            } else {
+                // Show "GO!" for a moment
+                this.countdownText = 'GO!';
+                this.gameState = 'racing';
+                this.raceStartTime = Date.now();
+                
+                // Clear GO! after 1 second
+                setTimeout(() => {
+                    this.countdownText = null;
+                }, 1000);
+            }
+        };
+        
+        // Start the countdown after 1 second
+        setTimeout(countdownSequence, 1000);
     }
     
     updateRemotePlayerPosition(data) {
@@ -870,11 +897,13 @@ class GoKartsGame {
     
     startRace() {
         this.showScreen('gameScreen');
-        this.gameState = 'racing';
+        this.gameState = 'countdown';  // Start with countdown
+        this.countdownValue = 3;
         
         // Give the screen time to be visible before initializing
         setTimeout(() => {
             this.initializeRace();
+            this.startCountdown();
             this.gameLoop();
         }, 100);
     }
@@ -888,10 +917,10 @@ class GoKartsGame {
         const canvasHeight = this.canvas.height || 800;
         const startPosition = { x: canvasWidth * 0.80, y: canvasHeight * 0.50 };
         
-        // Calculate starting angle to face (0.72, 0.68)
+        // Calculate starting angle to face (0.72, 0.68) - first checkpoint
         const targetX = canvasWidth * 0.72;
         const targetY = canvasHeight * 0.68;
-        const startAngle = Math.atan2(targetX - startPosition.x, -(targetY - startPosition.y));
+        const startAngle = Math.atan2(targetY - startPosition.y, targetX - startPosition.x);
         
         // Local player (always player 1)
         this.localPlayer = {
@@ -954,8 +983,10 @@ class GoKartsGame {
     }
     
     gameLoop() {
-        if (this.gameState === 'racing') {
-            this.update();
+        if (this.gameState === 'racing' || this.gameState === 'countdown') {
+            if (this.gameState === 'racing') {
+                this.update();  // Only update game physics when racing
+            }
             this.render();
             requestAnimationFrame(() => this.gameLoop());
         }
@@ -1314,6 +1345,64 @@ class GoKartsGame {
         this.players.forEach(player => {
             this.drawPlayer(player);
         });
+        
+        // Draw countdown if in countdown state
+        if (this.gameState === 'countdown' || this.countdownText) {
+            this.drawCountdown();
+        }
+    }
+    
+    drawCountdown() {
+        const centerX = this.canvas.width / 2;
+        const centerY = this.canvas.height / 2;
+        
+        // Draw semi-transparent background
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Set text style
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        
+        let displayText = '';
+        let textColor = '';
+        
+        if (this.countdownText === 'GO!') {
+            displayText = 'GO!';
+            textColor = '#00ff00';
+            this.ctx.font = 'bold 120px Orbitron';
+        } else if (this.countdownValue > 0) {
+            displayText = this.countdownValue.toString();
+            textColor = this.countdownValue === 1 ? '#ffff00' : '#ff9900';
+            this.ctx.font = 'bold 150px Orbitron';
+        }
+        
+        if (displayText) {
+            // Draw shadow
+            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+            this.ctx.shadowBlur = 20;
+            this.ctx.shadowOffsetX = 5;
+            this.ctx.shadowOffsetY = 5;
+            
+            // Draw text with gradient effect
+            this.ctx.fillStyle = textColor;
+            this.ctx.strokeStyle = 'white';
+            this.ctx.lineWidth = 4;
+            this.ctx.strokeText(displayText, centerX, centerY);
+            this.ctx.fillText(displayText, centerX, centerY);
+            
+            // Reset shadow
+            this.ctx.shadowBlur = 0;
+            this.ctx.shadowOffsetX = 0;
+            this.ctx.shadowOffsetY = 0;
+            
+            // Add "GET READY!" text during countdown
+            if (this.countdownValue > 0) {
+                this.ctx.font = 'bold 30px Rajdhani';
+                this.ctx.fillStyle = 'white';
+                this.ctx.fillText('GET READY!', centerX, centerY - 100);
+            }
+        }
     }
     
     drawTrack() {

@@ -136,16 +136,22 @@ class GoKartsGame {
     startRace() {
         this.showScreen('gameScreen');
         this.gameState = 'racing';
-        this.initializeRace();
-        this.gameLoop();
+        
+        // Give the screen time to be visible before initializing
+        setTimeout(() => {
+            this.initializeRace();
+            this.gameLoop();
+        }, 100);
     }
     
     initializeRace() {
         // Create 5 players (including local player)
         this.players = [];
         
-        // All players start at the same position
-        const startPosition = { x: this.canvas.width * 0.90, y: this.canvas.height * 0.79 };
+        // All players start at the same position (with fallback canvas dimensions)
+        const canvasWidth = this.canvas.width || 1200;
+        const canvasHeight = this.canvas.height || 800;
+        const startPosition = { x: canvasWidth * 0.90, y: canvasHeight * 0.79 };
         
         // Local player (always player 1)
         this.localPlayer = {
@@ -273,8 +279,10 @@ class GoKartsGame {
         }
         
         // Keep player on screen
-        player.x = Math.max(30, Math.min(this.canvas.width - 30, player.x));
-        player.y = Math.max(30, Math.min(this.canvas.height - 30, player.y));
+        const canvasWidth = this.canvas.width || 1200;
+        const canvasHeight = this.canvas.height || 800;
+        player.x = Math.max(30, Math.min(canvasWidth - 30, player.x));
+        player.y = Math.max(30, Math.min(canvasHeight - 30, player.y));
     }
     
     updateAIPlayer(player) {
@@ -285,9 +293,11 @@ class GoKartsGame {
         
         if (distance < 50) {
             // Create new random target
+            const canvasWidth = this.canvas.width || 1200;
+            const canvasHeight = this.canvas.height || 800;
             player.aiTarget = {
-                x: Math.random() * (this.canvas.width - 100) + 50,
-                y: Math.random() * (this.canvas.height - 100) + 50
+                x: Math.random() * (canvasWidth - 100) + 50,
+                y: Math.random() * (canvasHeight - 100) + 50
             };
         }
         

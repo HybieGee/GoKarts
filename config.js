@@ -45,7 +45,7 @@ const GAME_CONFIG = {
         "🎯 Precision checkpoint system", 
         "🏆 Competitive leaderboards",
         "💎 Launching on Pump.fun",
-        "⛽ Free gas fees for top players",
+        "⛽ Verifiable gas fee rewards",
         "📱 Mobile app coming soon"
     ],
     
@@ -54,7 +54,7 @@ const GAME_CONFIG = {
         gasFeeGiveaway: {
             enabled: true,
             interval: 30, // minutes
-            description: "Gas fees covered for the top leaderboard player every 30 minutes!"
+            description: "Top leaderboard player receives gas fee rewards from token treasury every 30 minutes with verifiable on-chain transactions!"
         }
     }
 };

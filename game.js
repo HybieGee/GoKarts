@@ -373,8 +373,8 @@ class GoKartsGame {
                 angle: playerData.position.angle,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
-                maxSpeed: isLocal ? 4 : 4,  // Same speed for all players
-                acceleration: isLocal ? 0.3 : 0.3,  // Same acceleration
+                maxSpeed: isLocal ? 4 : 3,  // Slower remote players
+                acceleration: isLocal ? 0.3 : 0.25,  // Slower acceleration for remote
                 deceleration: 0.6,
                 friction: 0.85,
                 turnSpeed: 0.08,
@@ -459,8 +459,8 @@ class GoKartsGame {
                 player.y = targetY;
                 player.angle = data.angle;
             } else {
-                // Moderate interpolation to prevent jittery movement
-                const lerpFactor = 0.3; // Reduced for more realistic movement
+                // Slow interpolation to prevent teleporting appearance
+                const lerpFactor = 0.15; // Much slower for more realistic movement
                 player.x = player.x + (targetX - player.x) * lerpFactor;
                 player.y = player.y + (targetY - player.y) * lerpFactor;
                 
@@ -469,14 +469,14 @@ class GoKartsGame {
                 let angleDiff = targetAngle - player.angle;
                 while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                 while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                player.angle += angleDiff * 0.3; // Slower angle updates for realism
+                player.angle += angleDiff * 0.15; // Much slower angle updates
             }
             
             // Update game state
             player.lapCount = data.lapCount;
             player.nextCheckpoint = data.nextCheckpoint;
-            // Reduce apparent speed of remote players for visual balance
-            player.speed = (data.speed || 0) * 0.8;
+            // Significantly reduce apparent speed of remote players
+            player.speed = (data.speed || 0) * 0.5;
             
             // Store timestamp for prediction
             player.lastUpdateTime = Date.now();
@@ -935,15 +935,18 @@ class GoKartsGame {
         const canvasHeight = this.canvas.height || 800;
         const startPosition = { x: canvasWidth * 0.80, y: canvasHeight * 0.50 };
         
-        // Calculate starting angle to face first checkpoint
-        // First checkpoint center is roughly at (0.655, 0.835)
-        const targetX = canvasWidth * 0.655;
-        const targetY = canvasHeight * 0.835;
-        // Math.atan2 gives angle in radians, with 0 pointing right
-        // We need to face down-left from (0.80, 0.50) to (0.655, 0.835)
-        const dx = targetX - startPosition.x;
-        const dy = targetY - startPosition.y;
-        const startAngle = Math.atan2(dy, dx);
+        // Calculate starting angle to face forward on the track
+        // First checkpoint (CP1) is at: { p1: { x: 0.62, y: 0.76 }, p2: { x: 0.69, y: 0.91 } }
+        // Center of CP1 is approximately (0.655, 0.835)
+        // From start (0.80, 0.50) we should face toward CP1 center
+        const cp1CenterX = canvasWidth * 0.655;
+        const cp1CenterY = canvasHeight * 0.835;
+        const dx = cp1CenterX - startPosition.x;
+        const dy = cp1CenterY - startPosition.y;
+        // Adjust angle because sprite default orientation is pointing up (north)
+        // Math.atan2 gives angle where 0 = east, but sprite 0 = north
+        // So we need to subtract π/2 to convert from "math coordinates" to "sprite coordinates"
+        const startAngle = Math.atan2(dy, dx) - Math.PI/2;
         
         // Local player (always player 1)
         this.localPlayer = {
@@ -1540,14 +1543,20 @@ class GoKartsGame {
         // Fetch leaderboard data from API
         try {
             const workerUrl = window.WORKER_URL || 'https://gokarts-multiplayer-prod.stealthbundlebot.workers.dev';
+            console.log('Fetching leaderboard from:', `${workerUrl}/api/leaderboard`);
             const response = await fetch(`${workerUrl}/api/leaderboard`);
+            console.log('Leaderboard response status:', response.status);
             if (response.ok) {
                 const leaderboardData = await response.json();
+                console.log('Leaderboard data received:', leaderboardData);
                 this.globalLeaderboard = leaderboardData;
                 this.updateLeaderboardDisplay();
                 
                 // Connect to WebSocket for live updates if not already connected
                 this.connectLeaderboardWebSocket();
+            } else {
+                console.error('Leaderboard fetch failed:', response.status, response.statusText);
+                this.updateLeaderboardDisplay(); // Show local leaderboard as fallback
             }
         } catch (error) {
             console.error('Failed to fetch leaderboard:', error);

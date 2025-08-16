@@ -89,12 +89,12 @@ export default {
         });
       }
       
-      // Debug state endpoint (dev-only)
+      // Debug state endpoint (temporarily enabled)
       if (url.pathname === '/api/debug/state' && request.method === 'GET') {
-        // Only allow in non-production environments
-        if (env.ENVIRONMENT === 'production') {
-          return new Response('Not Found', { status: 404, headers: corsHeaders });
-        }
+        // Temporarily enabled for debugging
+        // if (env.ENVIRONMENT === 'production') {
+        //   return new Response('Not Found', { status: 404, headers: corsHeaders });
+        // }
         
         const matchmakerId = env.MATCHMAKER.idFromName('global-matchmaker');
         const matchmaker = env.MATCHMAKER.get(matchmakerId);

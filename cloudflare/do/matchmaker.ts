@@ -56,6 +56,8 @@ export class MatchmakerDO {
     // Clean expired entries first
     this.cleanExpiredEntries();
     
+    console.log(`MM:JOIN_START player=${playerId} currentQueueSize=${this.queue.length} minPlayers=${this.minPlayersToStart}`);
+    
     // Check for idempotency - if player is already in queue, just return their status
     const existingPlayer = this.queue.find(p => p.playerId === playerId);
     if (existingPlayer) {

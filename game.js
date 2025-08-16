@@ -29,17 +29,17 @@ class GoKartsGame {
         this.raceStartTime = 0;
         this.raceFinished = false;
         
-        // Checkpoint system - bars across track positions on actual track image
+        // Checkpoint system - properly placed on the visible track
         this.checkpoints = [
-            { x1: 1050, y1: 570, x2: 1050, y2: 650, width: 80 },  // CP1: after start (vertical)
-            { x1: 950, y1: 530, x2: 1030, y2: 530, width: 80 },   // CP2: right side (horizontal)
-            { x1: 380, y1: 600, x2: 380, y2: 680, width: 80 },    // CP3: bottom left (vertical)
-            { x1: 340, y1: 330, x2: 420, y2: 330, width: 80 },    // CP4: top left (horizontal)
-            { x1: 530, y1: 250, x2: 530, y2: 330, width: 80 },    // CP5: top center (vertical)
-            { x1: 640, y1: 380, x2: 720, y2: 380, width: 80 },    // CP6: middle (horizontal)
-            { x1: 800, y1: 480, x2: 800, y2: 560, width: 80 },    // CP7: lower right (vertical)
-            { x1: 920, y1: 300, x2: 920, y2: 380, width: 80 },    // CP8: upper right (vertical)
-            { x1: 1080, y1: 430, x2: 1160, y2: 430, width: 80 }   // CP9: right before finish (horizontal)
+            { x1: 1070, y1: 550, x2: 1070, y2: 610, width: 60 },  // CP1: right after start
+            { x1: 970, y1: 530, x2: 1020, y2: 530, width: 60 },   // CP2: horizontal on right
+            { x1: 400, y1: 620, x2: 400, y2: 680, width: 60 },    // CP3: vertical bottom left
+            { x1: 380, y1: 340, x2: 440, y2: 340, width: 60 },    // CP4: horizontal top left  
+            { x1: 540, y1: 260, x2: 540, y2: 320, width: 60 },    // CP5: vertical at top
+            { x1: 650, y1: 390, x2: 710, y2: 390, width: 60 },    // CP6: horizontal in middle
+            { x1: 800, y1: 490, x2: 800, y2: 550, width: 60 },    // CP7: vertical on right side
+            { x1: 920, y1: 320, x2: 920, y2: 380, width: 60 },    // CP8: vertical upper right
+            { x1: 1100, y1: 440, x2: 1160, y2: 440, width: 60 }   // CP9: horizontal before finish
         ];
         
         // Leaderboard data (stored locally for now)

@@ -6,12 +6,17 @@ compatibility_date = "2023-12-01"
 bindings = [
   { name = "MATCHMAKER", class_name = "MatchmakerDO" },
   { name = "ROOM_REGISTRY", class_name = "RoomRegistryDO" },
-  { name = "ROOM_DO", class_name = "RoomDO" }
+  { name = "ROOM_DO", class_name = "RoomDO" },
+  { name = "LEADERBOARD", class_name = "LeaderboardDO" }
 ]
 
 [[migrations]]
 tag = "v1"
 new_classes = ["MatchmakerDO", "RoomRegistryDO", "RoomDO"]
+
+[[migrations]]
+tag = "v2"
+new_classes = ["LeaderboardDO"]
 
 [vars]
 ROOM_SIZE = "5"
@@ -30,7 +35,8 @@ name = "gokarts-multiplayer-prod"
 bindings = [
   { name = "MATCHMAKER", class_name = "MatchmakerDO" },
   { name = "ROOM_REGISTRY", class_name = "RoomRegistryDO" },
-  { name = "ROOM_DO", class_name = "RoomDO" }
+  { name = "ROOM_DO", class_name = "RoomDO" },
+  { name = "LEADERBOARD", class_name = "LeaderboardDO" }
 ]
 [env.production.vars]
 ROOM_SIZE = "2"

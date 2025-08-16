@@ -2,13 +2,15 @@
 import { MatchmakerDO } from './do/matchmaker';
 import { RoomRegistryDO } from './do/registry';
 import { RoomDO } from './do/room';
+import { LeaderboardDO } from './do/leaderboard';
 
-export { MatchmakerDO, RoomRegistryDO, RoomDO };
+export { MatchmakerDO, RoomRegistryDO, RoomDO, LeaderboardDO };
 
 interface Env {
   MATCHMAKER: DurableObjectNamespace;
   ROOM_REGISTRY: DurableObjectNamespace;
   ROOM_DO: DurableObjectNamespace;
+  LEADERBOARD: DurableObjectNamespace;
   ALLOWED_ORIGINS?: string;
   ROOM_SIZE?: string;
   QUEUE_TTL_MS?: string;
@@ -107,6 +109,19 @@ export default {
         });
       }
       
+      // Leaderboard endpoints
+      if (url.pathname === '/api/leaderboard' && request.method === 'GET') {
+        const leaderboardId = env.LEADERBOARD.idFromName('global-leaderboard');
+        const leaderboard = env.LEADERBOARD.get(leaderboardId);
+        const response = await leaderboard.fetch(new Request('https://dummy-url/get', {
+          method: 'GET'
+        }));
+        const result = await response.json();
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
       // Health check
       if (url.pathname === '/health') {
         return new Response('GoKarts Multiplayer Server is running!', { 
@@ -127,6 +142,13 @@ export default {
         const roomDOId = env.ROOM_DO.idFromName(roomId);
         const roomDO = env.ROOM_DO.get(roomDOId);
         return roomDO.fetch(request);
+      }
+      
+      // WebSocket routing - /ws/leaderboard for live updates
+      if (url.pathname === '/ws/leaderboard') {
+        const leaderboardId = env.LEADERBOARD.idFromName('global-leaderboard');
+        const leaderboard = env.LEADERBOARD.get(leaderboardId);
+        return leaderboard.fetch(request);
       }
       
       return new Response('WebSocket endpoint not found', { status: 404, headers: corsHeaders });

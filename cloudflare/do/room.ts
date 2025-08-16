@@ -1,6 +1,7 @@
 // RoomDO - Manages one race room
 interface Env {
   ROOM_HEARTBEAT_MS?: string;
+  LEADERBOARD?: DurableObjectNamespace;
 }
 
 interface Member {
@@ -154,7 +155,7 @@ export class RoomDO {
     }
   }
 
-  private handleRaceFinish(websocket: WebSocket, message: { playerId: string, finalTime: number, lapCount: number }): void {
+  private async handleRaceFinish(websocket: WebSocket, message: { playerId: string, finalTime: number, lapCount: number }): Promise<void> {
     const member = Array.from(this.members.values()).find(m => m.websocket === websocket);
     if (!member || this.gameState !== 'racing') {
       return;
@@ -164,6 +165,45 @@ export class RoomDO {
     
     // Mark the race as ended and broadcast to all players
     this.gameState = 'finished';
+    
+    // Report win to leaderboard
+    if (this.env.LEADERBOARD) {
+      try {
+        const winnerMember = this.members.get(message.playerId);
+        if (winnerMember) {
+          const leaderboardId = this.env.LEADERBOARD.idFromName('global-leaderboard');
+          const leaderboard = this.env.LEADERBOARD.get(leaderboardId);
+          
+          // Record the win
+          await leaderboard.fetch(new Request('https://dummy-url/record-win', {
+            method: 'POST',
+            body: JSON.stringify({
+              playerId: message.playerId,
+              playerName: winnerMember.playerName || message.playerId
+            }),
+            headers: { 'Content-Type': 'application/json' }
+          }));
+          
+          // Record participation for all other players
+          for (const [playerId, member] of this.members) {
+            if (playerId !== message.playerId) {
+              await leaderboard.fetch(new Request('https://dummy-url/record-race', {
+                method: 'POST',
+                body: JSON.stringify({
+                  playerId: playerId,
+                  playerName: member.playerName || playerId
+                }),
+                headers: { 'Content-Type': 'application/json' }
+              }));
+            }
+          }
+          
+          console.log(`ROOM:LEADERBOARD_UPDATE winner=${winnerMember.playerName}`);
+        }
+      } catch (error) {
+        console.error('Failed to update leaderboard:', error);
+      }
+    }
     
     // Get all players for final positions with proper ranking
     const allPlayers = Array.from(this.members.values()).map((m, index) => ({

@@ -1412,12 +1412,58 @@ class GoKartsGame {
         this.ctx.setLineDash([]);
     }
     
-    showLeaderboard() {
+    async showLeaderboard() {
         this.showScreen('leaderboardScreen');
         
-        // Request fresh leaderboard data if connected to server
-        if (this.socket && this.isMultiplayer) {
-            this.socket.emit('get-leaderboard');
+        // Fetch leaderboard data from API
+        try {
+            const workerUrl = window.WORKER_URL || 'https://gokarts-multiplayer-prod.stealthbundlebot.workers.dev';
+            const response = await fetch(`${workerUrl}/api/leaderboard`);
+            if (response.ok) {
+                const leaderboardData = await response.json();
+                this.globalLeaderboard = leaderboardData;
+                this.updateLeaderboardDisplay();
+                
+                // Connect to WebSocket for live updates if not already connected
+                this.connectLeaderboardWebSocket();
+            }
+        } catch (error) {
+            console.error('Failed to fetch leaderboard:', error);
+            this.updateLeaderboardDisplay(); // Show local leaderboard as fallback
+        }
+    }
+    
+    connectLeaderboardWebSocket() {
+        if (this.leaderboardWs) return; // Already connected
+        
+        try {
+            const workerUrl = window.WORKER_URL || 'https://gokarts-multiplayer-prod.stealthbundlebot.workers.dev';
+            const wsUrl = workerUrl.replace('https://', 'wss://');
+            this.leaderboardWs = new WebSocket(`${wsUrl}/ws/leaderboard`);
+            
+            this.leaderboardWs.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'leaderboard-update') {
+                        this.globalLeaderboard = data.data;
+                        if (this.currentScreen === 'leaderboardScreen') {
+                            this.updateLeaderboardDisplay();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to parse leaderboard message:', error);
+                }
+            };
+            
+            this.leaderboardWs.onerror = (error) => {
+                console.error('Leaderboard WebSocket error:', error);
+            };
+            
+            this.leaderboardWs.onclose = () => {
+                this.leaderboardWs = null;
+            };
+        } catch (error) {
+            console.error('Failed to connect leaderboard WebSocket:', error);
         }
     }
     
@@ -1447,17 +1493,30 @@ class GoKartsGame {
             entryDiv.className = 'leaderboard-entry';
             if (index === 0) entryDiv.classList.add('top');
             
-            // Highlight current player
-            const isCurrentPlayer = entry.name === this.playerName;
+            // Highlight current player by checking both name and playerId
+            const currentPlayerId = this.socket ? this.socket.id : null;
+            const savedName = localStorage.getItem('gokarts_player_name');
+            const isCurrentPlayer = entry.playerName === savedName || 
+                                  entry.playerId === currentPlayerId ||
+                                  entry.name === this.playerName;
+            
             if (isCurrentPlayer) {
                 entryDiv.style.background = 'rgba(76, 236, 196, 0.2)';
                 entryDiv.style.border = '1px solid #4ecdc4';
             }
             
+            // Get win rate if available
+            const winRate = entry.totalRaces > 0 ? 
+                Math.round((entry.wins / entry.totalRaces) * 100) : 0;
+            
             entryDiv.innerHTML = `
-                <span class="leaderboard-rank">${index + 1}</span>
-                <span class="leaderboard-name">${entry.name}${isCurrentPlayer ? ' (You)' : ''}</span>
-                <span class="leaderboard-wins">${entry.wins} wins</span>
+                <span class="leaderboard-rank">#${index + 1}</span>
+                <span class="leaderboard-name">${entry.playerName || entry.name}${isCurrentPlayer ? ' (You)' : ''}</span>
+                <span class="leaderboard-stats">
+                    <span class="wins">${entry.wins || 0} wins</span>
+                    ${entry.totalRaces ? `<span class="races">${entry.totalRaces} races</span>` : ''}
+                    ${winRate > 0 ? `<span class="winrate">${winRate}% win rate</span>` : ''}
+                </span>
             `;
             leaderboardList.appendChild(entryDiv);
         });

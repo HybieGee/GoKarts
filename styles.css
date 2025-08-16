@@ -898,23 +898,58 @@ body {
     background: rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     border-left: 4px solid #4ecdc4;
+    transition: all 0.3s ease;
+}
+
+.leaderboard-entry:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateX(5px);
 }
 
 .leaderboard-entry.top {
     border-left-color: #ffd700;
     background: rgba(255, 215, 0, 0.1);
+    font-size: 1.1rem;
+}
+
+.leaderboard-entry.top .leaderboard-rank {
+    color: #ffd700;
 }
 
 .leaderboard-rank {
     font-size: 1.2rem;
     font-weight: bold;
-    min-width: 40px;
+    min-width: 50px;
+    color: #4ecdc4;
 }
 
 .leaderboard-name {
     flex-grow: 1;
     text-align: left;
     margin-left: 20px;
+    font-weight: 600;
+}
+
+.leaderboard-stats {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.leaderboard-stats .wins {
+    color: #4ecdc4;
+    font-weight: bold;
+}
+
+.leaderboard-stats .races {
+    color: #aaa;
+    font-size: 0.9rem;
+}
+
+.leaderboard-stats .winrate {
+    color: #ffd700;
+    font-size: 0.9rem;
+    font-weight: 600;
 }
 
 .leaderboard-wins {

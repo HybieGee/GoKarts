@@ -29,6 +29,14 @@ class GoKartsGame {
         this.raceStartTime = 0;
         this.raceFinished = false;
         
+        // Checkpoint system for your S-track
+        this.checkpoints = [
+            { x: 400, y: 200, radius: 80 },   // Top of first curve
+            { x: 800, y: 400, radius: 80 },   // Middle right section
+            { x: 600, y: 600, radius: 80 },   // Bottom curve
+            { x: 200, y: 500, radius: 80 }    // Left side returning to start
+        ];
+        
         // Leaderboard data (stored locally for now)
         this.leaderboard = this.loadLeaderboard();
         
@@ -134,13 +142,13 @@ class GoKartsGame {
         // Create 5 players (including local player)
         this.players = [];
         
-        // Starting positions at the start/finish line
+        // Starting positions at the start/finish line (bottom of your S-track)
         const startPositions = [
-            { x: 150, y: 180 },
-            { x: 150, y: 200 },
-            { x: 150, y: 220 },
-            { x: 130, y: 190 },
-            { x: 130, y: 210 }
+            { x: 200, y: 680 },  // Front row center
+            { x: 180, y: 660 },  // Front row left
+            { x: 220, y: 660 },  // Front row right
+            { x: 160, y: 640 },  // Back row left
+            { x: 240, y: 640 }   // Back row right
         ];
         
         // Local player (always player 1)
@@ -160,7 +168,9 @@ class GoKartsGame {
             lapCount: 1,
             position: 1,
             isLocal: true,
-            image: this.playerImages[0]
+            image: this.playerImages[0],
+            checkpointsPassed: [],
+            lastCheckpoint: -1
         };
         this.players.push(this.localPlayer);
         
@@ -174,8 +184,8 @@ class GoKartsGame {
                 angle: 0,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
-                maxSpeed: 4 + Math.random(),
-                acceleration: 0.25 + Math.random() * 0.1,
+                maxSpeed: 3 + Math.random() * 0.5,
+                acceleration: 0.2 + Math.random() * 0.05,
                 deceleration: 0.5,
                 friction: 0.85,
                 turnSpeed: 0.06 + Math.random() * 0.02,
@@ -183,7 +193,9 @@ class GoKartsGame {
                 position: i + 1,
                 isLocal: false,
                 image: this.playerImages[i],
-                aiTarget: { x: 300, y: 150 } // First turn target
+                aiTarget: { x: 300, y: 150 }, // First turn target
+                checkpointsPassed: [],
+                lastCheckpoint: -1
             });
         }
         
@@ -210,6 +222,9 @@ class GoKartsGame {
                 this.updateAIPlayer(player);
             }
         });
+        
+        // Update checkpoints
+        this.updateCheckpoints();
         
         // Update race positions
         this.updateRacePositions();
@@ -302,29 +317,65 @@ class GoKartsGame {
         player.speed = Math.min(player.speed + player.acceleration, player.maxSpeed);
     }
     
-    updateRacePositions() {
-        // Simple position calculation based on distance traveled
+    updateCheckpoints() {
         this.players.forEach(player => {
-            player.distanceTraveled = player.x + (player.lapCount - 1) * 1000;
+            this.checkpoints.forEach((checkpoint, index) => {
+                const dx = player.x - checkpoint.x;
+                const dy = player.y - checkpoint.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < checkpoint.radius) {
+                    // Check if this is the next checkpoint in sequence
+                    const expectedNext = (player.lastCheckpoint + 1) % this.checkpoints.length;
+                    
+                    if (index === expectedNext && !player.checkpointsPassed.includes(index)) {
+                        player.checkpointsPassed.push(index);
+                        player.lastCheckpoint = index;
+                        
+                        // If completed all checkpoints, ready for lap completion
+                        if (player.checkpointsPassed.length === this.checkpoints.length) {
+                            player.readyForLap = true;
+                        }
+                    }
+                }
+            });
+        });
+    }
+    
+    updateRacePositions() {
+        // Calculate position based on laps and checkpoints
+        this.players.forEach(player => {
+            const lapProgress = player.lapCount - 1;
+            const checkpointProgress = player.checkpointsPassed.length / this.checkpoints.length;
+            player.raceProgress = lapProgress + checkpointProgress;
         });
         
-        // Sort by distance and assign positions
-        const sortedPlayers = [...this.players].sort((a, b) => b.distanceTraveled - a.distanceTraveled);
+        // Sort by race progress and assign positions
+        const sortedPlayers = [...this.players].sort((a, b) => b.raceProgress - a.raceProgress);
         sortedPlayers.forEach((player, index) => {
             player.position = index + 1;
         });
     }
     
     checkRaceCompletion() {
-        // Simple lap detection - if player crosses right side of screen, increment lap
+        // Check if players cross start/finish line with all checkpoints completed
         this.players.forEach(player => {
-            if (player.x > this.canvas.width - 50 && player.lastX < this.canvas.width - 100) {
+            // Start/finish line area (bottom of track)
+            const startFinishArea = { x: 200, y: 680, radius: 60 };
+            const dx = player.x - startFinishArea.x;
+            const dy = player.y - startFinishArea.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < startFinishArea.radius && player.readyForLap) {
                 player.lapCount++;
+                player.checkpointsPassed = []; // Reset checkpoints for next lap
+                player.lastCheckpoint = -1;
+                player.readyForLap = false;
+                
                 if (player.lapCount > this.maxLaps && !this.raceFinished) {
                     this.finishRace(player);
                 }
             }
-            player.lastX = player.x;
         });
     }
     
@@ -394,6 +445,9 @@ class GoKartsGame {
         // Draw track (custom image or fallback)
         this.drawTrack();
         
+        // Draw checkpoints
+        this.drawCheckpoints();
+        
         // Draw players
         this.players.forEach(player => {
             this.drawPlayer(player);
@@ -449,15 +503,49 @@ class GoKartsGame {
     }
     
     drawStartFinishLine() {
-        // Start/finish line
+        // Start/finish line at bottom of track
         this.ctx.strokeStyle = '#ffd700';
         this.ctx.lineWidth = 8;
         this.ctx.setLineDash([15, 15]);
         this.ctx.beginPath();
-        this.ctx.moveTo(80, 150);
-        this.ctx.lineTo(120, 250);
+        this.ctx.moveTo(160, 680);
+        this.ctx.lineTo(240, 680);
         this.ctx.stroke();
         this.ctx.setLineDash([]);
+    }
+    
+    drawCheckpoints() {
+        if (!this.localPlayer) return;
+        
+        this.checkpoints.forEach((checkpoint, index) => {
+            const passed = this.localPlayer.checkpointsPassed.includes(index);
+            const isNext = (this.localPlayer.lastCheckpoint + 1) % this.checkpoints.length === index;
+            
+            // Draw checkpoint circle
+            this.ctx.beginPath();
+            this.ctx.arc(checkpoint.x, checkpoint.y, checkpoint.radius, 0, Math.PI * 2);
+            
+            if (passed) {
+                this.ctx.fillStyle = 'rgba(0, 255, 0, 0.2)'; // Green if passed
+                this.ctx.strokeStyle = '#00ff00';
+            } else if (isNext) {
+                this.ctx.fillStyle = 'rgba(255, 255, 0, 0.3)'; // Yellow if next
+                this.ctx.strokeStyle = '#ffff00';
+            } else {
+                this.ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; // White if not reached
+                this.ctx.strokeStyle = '#ffffff';
+            }
+            
+            this.ctx.fill();
+            this.ctx.lineWidth = 3;
+            this.ctx.stroke();
+            
+            // Draw checkpoint number
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = 'bold 20px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(index + 1, checkpoint.x, checkpoint.y + 7);
+        });
     }
     
     drawPlayer(player) {

@@ -16,6 +16,7 @@ export class MatchmakerDO {
   private roomSize: number;
   private minPlayersToStart: number;
   private ttlMs: number;
+  private recentMatches = new Map<string, {roomId: string, wsUrl: string, timestamp: number}>();
 
   constructor(private controller: DurableObjectState, private env: Env) {
     this.roomSize = parseInt(env.ROOM_SIZE || '5');
@@ -90,6 +91,15 @@ export class MatchmakerDO {
       
       console.log(`MM:MATCH room=${roomData.roomId} size=${playersForRoom.length} players=${playersForRoom.map(p => p.playerId).join(',')}`);
       
+      // Store match info for all players so they can be notified via polling
+      playersForRoom.forEach(player => {
+        this.recentMatches.set(player.playerId, {
+          roomId: roomData.roomId,
+          wsUrl: roomData.wsUrl,
+          timestamp: Date.now()
+        });
+      });
+      
       // Mark this player as matched (they'll be removed from the response)
       const thisPlayerIndex = playersForRoom.findIndex(p => p.playerId === playerId);
       if (thisPlayerIndex !== -1) {
@@ -132,6 +142,19 @@ export class MatchmakerDO {
   private async handlePoll(playerId: string): Promise<Response> {
     this.cleanExpiredEntries();
     
+    // Check if player was recently matched
+    const recentMatch = this.recentMatches.get(playerId);
+    if (recentMatch && Date.now() - recentMatch.timestamp < 10000) { // 10 second window
+      this.recentMatches.delete(playerId); // Clean up
+      return new Response(JSON.stringify({
+        status: "matched",
+        roomId: recentMatch.roomId,
+        wsUrl: recentMatch.wsUrl
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
     const playerIndex = this.queue.findIndex(p => p.playerId === playerId);
     
     if (playerIndex === -1) {
@@ -155,6 +178,15 @@ export class MatchmakerDO {
       const roomData = await this.createRoom(playersForRoom.length);
       
       console.log(`MM:MATCH room=${roomData.roomId} size=${playersForRoom.length} players=${playersForRoom.map(p => p.playerId).join(',')}`);
+      
+      // Store match info for all players so they can be notified via polling
+      playersForRoom.forEach(player => {
+        this.recentMatches.set(player.playerId, {
+          roomId: roomData.roomId,
+          wsUrl: roomData.wsUrl,
+          timestamp: Date.now()
+        });
+      });
       
       // This player is in the room
       if (playersForRoom.some(p => p.playerId === playerId)) {

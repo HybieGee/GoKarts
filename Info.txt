@@ -1,0 +1,3 @@
+Little go karts web game that is online/multiplayer, get put in to a map with 5 total people where you race to be the best.
+
+Also will have an overall leader board for the amount of wins.

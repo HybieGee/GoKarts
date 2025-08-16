@@ -29,17 +29,17 @@ class GoKartsGame {
         this.raceStartTime = 0;
         this.raceFinished = false;
         
-        // Checkpoint system - bars across track (canvas is 1200x800)
+        // Checkpoint system - bars across track positions on actual track image
         this.checkpoints = [
-            { x1: 1000, y1: 550, x2: 1000, y2: 630, width: 80 },  // Checkpoint 1 (vertical, after start)
-            { x1: 880, y1: 500, x2: 960, y2: 500, width: 80 },   // Checkpoint 2 (horizontal, right curve)
-            { x1: 350, y1: 550, x2: 350, y2: 630, width: 80 },   // Checkpoint 3 (vertical, left bottom)
-            { x1: 320, y1: 300, x2: 400, y2: 300, width: 80 },   // Checkpoint 4 (horizontal, left top)
-            { x1: 500, y1: 220, x2: 500, y2: 300, width: 80 },   // Checkpoint 5 (vertical, top center)
-            { x1: 600, y1: 350, x2: 680, y2: 350, width: 80 },   // Checkpoint 6 (horizontal, middle)
-            { x1: 750, y1: 450, x2: 750, y2: 530, width: 80 },   // Checkpoint 7 (vertical, right middle)
-            { x1: 850, y1: 270, x2: 850, y2: 350, width: 80 },   // Checkpoint 8 (vertical, top right)
-            { x1: 1040, y1: 400, x2: 1120, y2: 400, width: 80 }  // Checkpoint 9 (horizontal, before finish)
+            { x1: 1050, y1: 570, x2: 1050, y2: 650, width: 80 },  // CP1: after start (vertical)
+            { x1: 950, y1: 530, x2: 1030, y2: 530, width: 80 },   // CP2: right side (horizontal)
+            { x1: 380, y1: 600, x2: 380, y2: 680, width: 80 },    // CP3: bottom left (vertical)
+            { x1: 340, y1: 330, x2: 420, y2: 330, width: 80 },    // CP4: top left (horizontal)
+            { x1: 530, y1: 250, x2: 530, y2: 330, width: 80 },    // CP5: top center (vertical)
+            { x1: 640, y1: 380, x2: 720, y2: 380, width: 80 },    // CP6: middle (horizontal)
+            { x1: 800, y1: 480, x2: 800, y2: 560, width: 80 },    // CP7: lower right (vertical)
+            { x1: 920, y1: 300, x2: 920, y2: 380, width: 80 },    // CP8: upper right (vertical)
+            { x1: 1080, y1: 430, x2: 1160, y2: 430, width: 80 }   // CP9: right before finish (horizontal)
         ];
         
         // Leaderboard data (stored locally for now)

@@ -6,6 +6,15 @@ export default {
     const upgradeHeader = request.headers.get('Upgrade');
     
     if (!upgradeHeader || upgradeHeader !== 'websocket') {
+      // Add reset endpoint for debugging
+      const url = new URL(request.url);
+      if (url.pathname === '/reset') {
+        const gameRoomId = env.GAME_ROOMS.idFromName('default');
+        const gameRoom = env.GAME_ROOMS.get(gameRoomId);
+        await gameRoom.fetch(new Request('https://dummy-url/reset', { method: 'POST' }));
+        return new Response('Room reset!', { status: 200 });
+      }
+      
       return new Response('GoKarts Multiplayer Server is running! Use WebSocket to connect.', { 
         status: 200,
         headers: {
@@ -16,26 +25,14 @@ export default {
     }
 
     try {
-      const webSocketPair = new WebSocketPair();
-      const [client, server] = Object.values(webSocketPair);
-
-      server.accept();
-      
-      // Get or create game room
-      const gameRoomId = env.GAME_ROOMS.idFromName('default');
+      // Use timestamp-based room names to force new instances
+      const roomName = `room-${Math.floor(Date.now() / 60000)}`; // New room every minute
+      const gameRoomId = env.GAME_ROOMS.idFromName(roomName);
       const gameRoom = env.GAME_ROOMS.get(gameRoomId);
-      console.log('🏠 Using game room:', gameRoomId.toString());
+      console.log('🏠 Using game room:', roomName);
       
-      // Handle the WebSocket in the Durable Object
-      await gameRoom.fetch('https://dummy-url', {
-        method: 'POST',
-        webSocket: server
-      });
-
-      return new Response(null, {
-        status: 101,
-        webSocket: client,
-      });
+      // Pass the WebSocket upgrade to the Durable Object directly
+      return gameRoom.fetch(request);
     } catch (error) {
       console.error('WebSocket error:', error);
       return new Response('WebSocket connection failed: ' + error.message, { 
@@ -59,46 +56,64 @@ export class GameRoom {
   }
 
   async fetch(request) {
-    // Get the WebSocket from the request
-    const websocket = request.webSocket;
-    
-    if (!websocket) {
-      console.error('No WebSocket provided to Durable Object');
-      return new Response('WebSocket required', { status: 400 });
+    // Handle reset request
+    const url = new URL(request.url);
+    if (url.pathname === '/reset') {
+      this.gameState = 'waiting';
+      this.sessions.clear();
+      this.players.clear();
+      console.log('🔄 Room reset!');
+      return new Response('Room reset', { status: 200 });
     }
     
-    // Accept and handle the WebSocket
-    websocket.accept();
-    this.sessions.add(websocket);
+    // Check if this is a WebSocket upgrade request
+    const upgradeHeader = request.headers.get('Upgrade');
+    
+    if (!upgradeHeader || upgradeHeader !== 'websocket') {
+      return new Response('Expected WebSocket upgrade', { status: 426 });
+    }
+
+    // Create WebSocket pair
+    const webSocketPair = new WebSocketPair();
+    const [client, server] = Object.values(webSocketPair);
+
+    // Accept the server-side WebSocket
+    server.accept();
+    this.sessions.add(server);
     console.log(`🔌 Player connected! Total sessions: ${this.sessions.size}`);
     
-    websocket.addEventListener('message', event => {
+    server.addEventListener('message', event => {
       try {
         const data = JSON.parse(event.data);
         console.log(`📨 Received message: ${data.type} (from ${this.sessions.size} total sessions)`);
-        this.handleMessage(websocket, data);
+        this.handleMessage(server, data);
       } catch (error) {
         console.error('Message parse error:', error);
       }
     });
     
-    websocket.addEventListener('close', event => {
+    server.addEventListener('close', event => {
       console.log('Player disconnected:', event.code, event.reason);
-      this.sessions.delete(websocket);
-      this.players.delete(websocket);
+      this.sessions.delete(server);
+      this.players.delete(server);
     });
 
-    websocket.addEventListener('error', event => {
+    server.addEventListener('error', event => {
       console.error('WebSocket error in Durable Object:', event);
-      this.sessions.delete(websocket);
-      this.players.delete(websocket);
+      this.sessions.delete(server);
+      this.players.delete(server);
     });
 
-    return new Response('WebSocket handled', { status: 200 });
+    // Return the client-side WebSocket to the browser
+    return new Response(null, {
+      status: 101,
+      webSocket: client
+    });
   }
 
   handleMessage(websocket, message) {
     console.log(`🎮 Handling ${message.type} message`);
+    
     switch (message.type) {
       case 'player-identify':
         const playerId = this.generateId();
@@ -123,6 +138,12 @@ export class GameRoom {
 
   startMatchmaking(websocket) {
     console.log(`🏁 Starting matchmaking - Sessions: ${this.sessions.size}, Players: ${this.players.size}, Game State: ${this.gameState}`);
+    
+    // Reset game state if it's stuck in racing mode with no active race
+    if (this.gameState === 'racing') {
+      console.log(`🔄 Resetting stuck racing state to waiting`);
+      this.gameState = 'waiting';
+    }
     
     // Broadcast to all players in room
     const roomData = {

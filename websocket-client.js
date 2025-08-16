@@ -27,7 +27,9 @@ class CloudflareGameClient {
                 try {
                     const data = JSON.parse(event.data);
                     console.log('📨 Received:', data.type, data);
-                    this.emit(data.type, data);
+                    // Trigger local handlers WITHOUT sending back to server
+                    const handlers = this.eventHandlers.get(data.type) || [];
+                    handlers.forEach(handler => handler(data));
                 } catch (err) {
                     console.error('Failed to parse message:', err);
                     console.log('Raw message:', event.data);

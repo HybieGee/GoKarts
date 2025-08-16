@@ -79,6 +79,17 @@ class GoKartsGame {
     }
 
     buildPlayersFromRoom(roomData) {
+        // Calculate correct starting angle (same as single player)
+        const startPosition = { x: 0.8, y: 0.5 };
+        const cp1CenterX = 0.655;
+        const cp1CenterY = 0.835;
+        const dx = cp1CenterX - startPosition.x;
+        const dy = cp1CenterY - startPosition.y;
+        const standardAngle = Math.atan2(dy, dx);
+        const correctStartAngle = standardAngle + Math.PI/2;
+        
+        console.log('Multiplayer starting angle calculated:', correctStartAngle, 'degrees:', correctStartAngle * 180 / Math.PI);
+        
         // Convert room player IDs to player objects for the race
         return roomData.players.map((playerId, index) => ({
             id: playerId,
@@ -86,7 +97,7 @@ class GoKartsGame {
             position: { 
                 x: 0.8, 
                 y: 0.5, 
-                angle: 0,
+                angle: correctStartAngle,  // Use calculated angle instead of 0
                 lapCount: 1,
                 nextCheckpoint: 0
             }

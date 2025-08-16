@@ -937,17 +937,25 @@ class GoKartsGame {
         
         // Calculate starting angle to face forward on the track
         // Game angle system: 0=north, π/2=east, π=south, 3π/2=west
-        // From start (0.80, 0.50) to first checkpoint center (0.655, 0.835)
-        // We need to go LEFT and DOWN
+        // From start (0.80, 0.50) we need to face toward first checkpoint
         const cp1CenterX = canvasWidth * 0.655;
         const cp1CenterY = canvasHeight * 0.835;
-        const dx = cp1CenterX - startPosition.x;  // negative (going left)
-        const dy = cp1CenterY - startPosition.y;  // positive (going down)
+        const dx = cp1CenterX - startPosition.x;  // will be negative (going left)
+        const dy = cp1CenterY - startPosition.y;  // will be positive (going down)
         
-        // Convert from standard Math.atan2 (0=east) to game coords (0=north)
-        // Math.atan2 angle = game angle - π/2
-        // So: game angle = Math.atan2 angle + π/2
-        const startAngle = Math.atan2(dx, dy); // Note: swapped dx,dy for game coordinate system
+        // Standard atan2 gives angle where 0=east, π/2=south, π=west, 3π/2=north
+        // Game needs angle where 0=north, π/2=east, π=south, 3π/2=west
+        // To convert: game_angle = standard_atan2_angle + π/2
+        const standardAngle = Math.atan2(dy, dx);  // standard coordinates
+        const startAngle = standardAngle + Math.PI/2;  // convert to game coordinates
+        
+        // Debug logging
+        console.log('Starting position:', startPosition);
+        console.log('Target position:', { x: cp1CenterX, y: cp1CenterY });
+        console.log('Delta:', { dx, dy });
+        console.log('Standard angle (radians):', standardAngle);
+        console.log('Game start angle (radians):', startAngle);
+        console.log('Game start angle (degrees):', startAngle * 180 / Math.PI);
         
         // Local player (always player 1)
         this.localPlayer = {

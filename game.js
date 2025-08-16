@@ -384,8 +384,8 @@ class GoKartsGame {
                 angle: playerData.position.angle,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
-                maxSpeed: 3,  // Same speed for everyone in multiplayer
-                acceleration: 0.25,  // Same acceleration for everyone
+                maxSpeed: 2,  // Much slower for testing
+                acceleration: 0.15,  // Much slower acceleration
                 deceleration: 0.6,
                 friction: 0.85,
                 turnSpeed: 0.08,
@@ -405,6 +405,18 @@ class GoKartsGame {
             this.players.push(player);
             if (isLocal) {
                 this.localPlayer = player;
+                console.log('🏎️ LOCAL PLAYER PHYSICS:', {
+                    maxSpeed: player.maxSpeed,
+                    acceleration: player.acceleration,
+                    isLocal: player.isLocal
+                });
+            } else {
+                console.log('👥 REMOTE PLAYER PHYSICS:', {
+                    id: player.id,
+                    maxSpeed: player.maxSpeed,
+                    acceleration: player.acceleration,
+                    isLocal: player.isLocal
+                });
             }
         });
         
@@ -977,8 +989,8 @@ class GoKartsGame {
             angle: startAngle, // Face towards (0.72, 0.68)
             velocity: { x: 0, y: 0 },
             speed: 0,
-            maxSpeed: 3, // Balanced for multiplayer
-            acceleration: 0.25,
+            maxSpeed: 2, // Much slower for testing
+            acceleration: 0.15,
             deceleration: 0.6,
             friction: 0.85,
             turnSpeed: 0.08,
@@ -1079,6 +1091,14 @@ class GoKartsGame {
             if (this.keys['w'] || this.keys['ArrowUp']) {
                 player.speed += player.acceleration;
                 accelerating = true;
+                // Debug log every 100 frames
+                if (Math.random() < 0.01) {
+                    console.log('🚗 ACCELERATING:', {
+                        speed: player.speed.toFixed(2),
+                        maxSpeed: player.maxSpeed,
+                        acceleration: player.acceleration
+                    });
+                }
             } else if (this.keys['s'] || this.keys['ArrowDown']) {
                 player.speed -= player.deceleration;
                 braking = true;

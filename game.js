@@ -1,11 +1,11 @@
-// GoKarts Racing Game - Cache Bust v27 - 2024-12-16-22:00
-// FRAME RATE INDEPENDENT MOVEMENT: Fixed 60Hz vs 120Hz speed differences
-const GAME_VERSION = 'v27-framerate-fix-2024-12-16-22:00';
+// GoKarts Racing Game - Cache Bust v28 - 2024-12-16-22:15
+// FRAME RATE INDEPENDENT + GOOD RACING SPEED: maxSpeed=3.5, acceleration=0.25
+const GAME_VERSION = 'v28-good-racing-speed-2024-12-16-22:15';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
-console.log('📊 EXPECTED PHYSICS: maxSpeed=1, acceleration=0.08');
+console.log('📊 EXPECTED PHYSICS: maxSpeed=3.5, acceleration=0.25');
 console.log('🔧 CACHE BUSTER: Timestamp =', Date.now());
 console.log('🎯 FRAME RATE FIX: Delta time movement implemented!');
-console.log('⚡ v27 CRITICAL UPDATE: This should fix the 5-10x speed issue!');
+console.log('⚡ v28 UPDATE: Frame rate fix + good racing speed limits!');
 
 class GoKartsGame {
     constructor() {
@@ -397,8 +397,8 @@ class GoKartsGame {
                 angle: playerData.position.angle,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
-                maxSpeed: 1,  // EXTREMELY slow for testing
-                acceleration: 0.08,  // EXTREMELY slow acceleration
+                maxSpeed: 3.5,  // Good racing speed
+                acceleration: 0.25,  // Good acceleration
                 deceleration: 0.6,
                 friction: 0.85,
                 turnSpeed: 0.08,
@@ -1006,8 +1006,8 @@ class GoKartsGame {
             angle: startAngle, // Face towards (0.72, 0.68)
             velocity: { x: 0, y: 0 },
             speed: 0,
-            maxSpeed: 2, // Much slower for testing
-            acceleration: 0.15,
+            maxSpeed: 3.5, // Good racing speed
+            acceleration: 0.25,
             deceleration: 0.6,
             friction: 0.85,
             turnSpeed: 0.08,
@@ -1034,8 +1034,8 @@ class GoKartsGame {
                 angle: startAngle,
                 velocity: { x: 0, y: 0 },
                 speed: 0,
-                maxSpeed: 2.8 + Math.random() * 0.4, // 2.8-3.2 range for variety but balanced
-                acceleration: 0.22 + Math.random() * 0.06, // 0.22-0.28 range
+                maxSpeed: 3.3 + Math.random() * 0.4, // 3.3-3.7 range for variety but balanced  
+                acceleration: 0.23 + Math.random() * 0.04, // 0.23-0.27 range
                 deceleration: 0.5,
                 friction: 0.85,
                 turnSpeed: 0.06 + Math.random() * 0.02,
@@ -1136,9 +1136,9 @@ class GoKartsGame {
                 }
             }
             
-            // Speed limits - TEMPORARILY REMOVED FOR TESTING
-            // player.speed = Math.max(-player.maxSpeed * 0.6, Math.min(player.maxSpeed, player.speed));
-            console.log('🔥 SPEED CHECK - Before limit:', player.speed.toFixed(2), 'maxSpeed:', player.maxSpeed);
+            // Speed limits - RESTORED AT GOOD RACING SPEED
+            player.speed = Math.max(-player.maxSpeed * 0.6, Math.min(player.maxSpeed, player.speed));
+            console.log('🏁 SPEED LIMITED - speed:', player.speed.toFixed(2), 'maxSpeed:', player.maxSpeed);
             
             // Apply friction when not accelerating (frame rate independent)
             if (!accelerating && !braking) {
@@ -1208,9 +1208,9 @@ class GoKartsGame {
             player.angle += Math.sign(normalizedAngleDiff) * player.turnSpeed * 2;
         }
         
-        // Move forward - FRAME RATE INDEPENDENT
-        player.speed = player.speed + player.acceleration * this.deltaTimeMultiplier;
-        console.log('🤖 AI SPEED CHECK:', player.speed.toFixed(2), 'deltaMultiplier:', this.deltaTimeMultiplier.toFixed(3));
+        // Move forward - FRAME RATE INDEPENDENT WITH SPEED LIMIT
+        player.speed = Math.min(player.speed + player.acceleration * this.deltaTimeMultiplier, player.maxSpeed);
+        console.log('🤖 AI SPEED LIMITED:', player.speed.toFixed(2), 'maxSpeed:', player.maxSpeed);
     }
     
     updateCheckpoints() {

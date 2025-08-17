@@ -1,10 +1,10 @@
-// GoKarts Racing Game - UNIFIED PHYSICS v23 - 2024-12-16-21:20
-// CRITICAL FIX: Disabled speed override from network updates
-const GAME_VERSION = 'v23-unified-physics-no-speed-override-2024-12-16-21:20';
+// GoKarts Racing Game - PHYSICS v23 - 2024-12-16-21:30
+// FIX: Reverted to separate physics - local uses physics, remote uses interpolation
+const GAME_VERSION = 'v23-separate-physics-2024-12-16-21:30';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
-console.log('⚡ UNIFIED PHYSICS: All players use same physics system');
-console.log('🚫 SPEED OVERRIDE DISABLED: Network updates no longer override local physics');
-console.log('🏁 NORMAL SPEEDS: maxSpeed=4, acceleration=0.3');
+console.log('🎮 LOCAL: Uses physics system');
+console.log('🌐 REMOTE: Uses network interpolation');
+console.log('🏁 SPEEDS: maxSpeed=4, acceleration=0.3, lerp=0.15');
 
 class GoKartsGame {
     constructor() {
@@ -483,14 +483,13 @@ class GoKartsGame {
             const distance = Math.sqrt((targetX - player.x) ** 2 + (targetY - player.y) ** 2);
             
             // If the distance is too large, snap to prevent teleporting appearance
-            // This helps when players join mid-race or there's network lag
-            if (distance > 150) {  // Increased threshold to reduce snapping
+            if (distance > 150) {
                 player.x = targetX;
                 player.y = targetY;
                 player.angle = data.angle;
             } else {
                 // Smooth interpolation for network updates
-                const lerpFactor = 0.3; // Balanced interpolation
+                const lerpFactor = 0.15; // Reduced for smoother movement
                 player.x = player.x + (targetX - player.x) * lerpFactor;
                 player.y = player.y + (targetY - player.y) * lerpFactor;
                 
@@ -499,14 +498,23 @@ class GoKartsGame {
                 let angleDiff = targetAngle - player.angle;
                 while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
                 while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-                player.angle += angleDiff * 0.3; // Smooth angle updates
+                player.angle += angleDiff * 0.15; // Smooth angle updates
             }
             
             // Update game state
             player.lapCount = data.lapCount;
             player.nextCheckpoint = data.nextCheckpoint;
-            // DON'T override speed - let unified physics handle it
-            // player.speed = data.speed || 0; // DISABLED: This was overriding unified physics!
+            
+            // Calculate and apply appropriate speed based on movement
+            if (player.prevX !== undefined && player.prevY !== undefined) {
+                const dx = targetX - player.prevX;  // Use target, not current
+                const dy = targetY - player.prevY;
+                const frameDistance = Math.sqrt(dx * dx + dy * dy);
+                // Speed is distance per frame, clamped to max
+                player.speed = Math.min(frameDistance * 0.5, player.maxSpeed);
+            }
+            player.prevX = targetX;
+            player.prevY = targetY;
             
             // Store timestamp for prediction
             player.lastUpdateTime = Date.now();
@@ -1058,11 +1066,10 @@ class GoKartsGame {
     }
     
     update() {
-        // Update ALL players with physics in multiplayer mode
+        // Update ONLY local player with physics in multiplayer mode
+        // Remote players get their positions from network
         if (this.isMultiplayer) {
-            this.players.forEach(player => {
-                this.updatePlayer(player);
-            });
+            this.updatePlayer(this.localPlayer);
         } else {
             // Update local player
             this.updatePlayer(this.localPlayer);

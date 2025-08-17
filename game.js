@@ -1,9 +1,11 @@
-// GoKarts Racing Game - Cache Bust v25 - 2024-12-16-21:30
-// EXTREME SPEED DEBUG: maxSpeed=1, acceleration=0.08
-const GAME_VERSION = 'v25-extreme-debug-2024-12-16-21:30';
+// GoKarts Racing Game - Cache Bust v27 - 2024-12-16-22:00
+// FRAME RATE INDEPENDENT MOVEMENT: Fixed 60Hz vs 120Hz speed differences
+const GAME_VERSION = 'v27-framerate-fix-2024-12-16-22:00';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
 console.log('📊 EXPECTED PHYSICS: maxSpeed=1, acceleration=0.08');
 console.log('🔧 CACHE BUSTER: Timestamp =', Date.now());
+console.log('🎯 FRAME RATE FIX: Delta time movement implemented!');
+console.log('⚡ v27 CRITICAL UPDATE: This should fix the 5-10x speed issue!');
 
 class GoKartsGame {
     constructor() {
@@ -50,6 +52,11 @@ class GoKartsGame {
         this.maxLaps = 3;
         this.raceStartTime = 0;
         this.raceFinished = false;
+        
+        // Frame rate independent movement
+        this.lastFrameTime = 0;
+        this.targetFPS = 60;
+        this.deltaTimeMultiplier = 1;
         
         // Checkpoint system
         this.checkpointLines = [
@@ -1053,6 +1060,15 @@ class GoKartsGame {
     gameLoop() {
         if (this.gameState === 'racing' || this.gameState === 'countdown') {
             if (this.gameState === 'racing') {
+                // Calculate delta time for frame rate independence
+                const currentTime = performance.now();
+                if (this.lastFrameTime === 0) this.lastFrameTime = currentTime;
+                const deltaTime = currentTime - this.lastFrameTime;
+                this.deltaTimeMultiplier = (deltaTime / (1000 / this.targetFPS));
+                this.lastFrameTime = currentTime;
+                
+                console.log('⏱️ FRAME RATE - deltaTime:', deltaTime.toFixed(2), 'multiplier:', this.deltaTimeMultiplier.toFixed(3));
+                
                 this.update();  // Only update game physics when racing
             }
             this.render();
@@ -1099,48 +1115,54 @@ class GoKartsGame {
             
             // W/S controls speed (forward/backward relative to kart's front)
             if (this.keys['w'] || this.keys['ArrowUp']) {
-                player.speed += player.acceleration;
+                player.speed += player.acceleration * this.deltaTimeMultiplier;
                 accelerating = true;
                 // Debug log every 100 frames
                 if (Math.random() < 0.01) {
-                    console.log('🚗 LOCAL ACCELERATING - speed:', player.speed.toFixed(2), 'maxSpeed:', player.maxSpeed, 'acceleration:', player.acceleration, 'id:', player.id);
+                    console.log('🚗 LOCAL ACCELERATING - speed:', player.speed.toFixed(2), 'deltaMultiplier:', this.deltaTimeMultiplier.toFixed(3), 'id:', player.id);
                 }
             } else if (this.keys['s'] || this.keys['ArrowDown']) {
-                player.speed -= player.deceleration;
+                player.speed -= player.deceleration * this.deltaTimeMultiplier;
                 braking = true;
             }
             
             // A/D controls turning (only when moving)
             if (Math.abs(player.speed) > 0.1) {
                 if (this.keys['a'] || this.keys['ArrowLeft']) {
-                    player.angle -= player.turnSpeed * Math.abs(player.speed) / player.maxSpeed;
+                    player.angle -= player.turnSpeed * Math.abs(player.speed) / player.maxSpeed * this.deltaTimeMultiplier;
                 }
                 if (this.keys['d'] || this.keys['ArrowRight']) {
-                    player.angle += player.turnSpeed * Math.abs(player.speed) / player.maxSpeed;
+                    player.angle += player.turnSpeed * Math.abs(player.speed) / player.maxSpeed * this.deltaTimeMultiplier;
                 }
             }
             
-            // Speed limits
-            player.speed = Math.max(-player.maxSpeed * 0.6, Math.min(player.maxSpeed, player.speed));
+            // Speed limits - TEMPORARILY REMOVED FOR TESTING
+            // player.speed = Math.max(-player.maxSpeed * 0.6, Math.min(player.maxSpeed, player.speed));
+            console.log('🔥 SPEED CHECK - Before limit:', player.speed.toFixed(2), 'maxSpeed:', player.maxSpeed);
             
-            // Apply friction when not accelerating
+            // Apply friction when not accelerating (frame rate independent)
             if (!accelerating && !braking) {
-                player.speed *= player.friction;
+                player.speed *= Math.pow(player.friction, this.deltaTimeMultiplier);
                 if (Math.abs(player.speed) < 0.1) {
                     player.speed = 0;
                 }
             }
         }
         
-        // Move in the direction the kart is facing 
+        // Move in the direction the kart is facing (FRAME RATE INDEPENDENT)
         // Start with kart facing upward (negative Y direction)
-        player.velocity.x = Math.sin(player.angle) * player.speed;
-        player.velocity.y = -Math.cos(player.angle) * player.speed;
+        player.velocity.x = Math.sin(player.angle) * player.speed * this.deltaTimeMultiplier;
+        player.velocity.y = -Math.cos(player.angle) * player.speed * this.deltaTimeMultiplier;
         
         // Update position
         // Calculate new position and check collision
         const newX = player.x + player.velocity.x;
         const newY = player.y + player.velocity.y;
+        
+        // Debug movement calculation
+        if (Math.random() < 0.01) {
+            console.log('🚀 MOVEMENT - speed:', player.speed.toFixed(2), 'deltaMultiplier:', this.deltaTimeMultiplier.toFixed(3), 'velocity:', player.velocity.x.toFixed(2), player.velocity.y.toFixed(2));
+        }
         
         // Check if new position is on track
         if (this.isOnTrack(newX, newY)) {
@@ -1186,8 +1208,9 @@ class GoKartsGame {
             player.angle += Math.sign(normalizedAngleDiff) * player.turnSpeed * 2;
         }
         
-        // Move forward
-        player.speed = Math.min(player.speed + player.acceleration, player.maxSpeed);
+        // Move forward - FRAME RATE INDEPENDENT
+        player.speed = player.speed + player.acceleration * this.deltaTimeMultiplier;
+        console.log('🤖 AI SPEED CHECK:', player.speed.toFixed(2), 'deltaMultiplier:', this.deltaTimeMultiplier.toFixed(3));
     }
     
     updateCheckpoints() {

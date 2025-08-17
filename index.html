@@ -271,11 +271,12 @@
 
     <!-- Socket.io removed - using Cloudflare Workers instead -->
     <script>
-        // Force cache refresh with timestamp
-        const t = Date.now();
-        document.write('<script src="websocket-client.js?v=25&t=' + t + '"><\/script>');
-        document.write('<script src="config.js?v=25&t=' + t + '"><\/script>');
-        document.write('<script src="game.js?v=25&t=' + t + '"><\/script>');
+        // AGGRESSIVE cache busting - v27 FRAME RATE FIX
+        const cacheBust = Date.now() + Math.random().toString(36);
+        console.log('🔄 CACHE BUST v27:', cacheBust);
+        document.write('<script src="websocket-client.js?v=27-framerate-fix&cb=' + cacheBust + '"><\/script>');
+        document.write('<script src="config.js?v=27-framerate-fix&cb=' + cacheBust + '"><\/script>');
+        document.write('<script src="game.js?v=27-framerate-fix&cb=' + cacheBust + '"><\/script>');
     </script>
 </body>
 </html>

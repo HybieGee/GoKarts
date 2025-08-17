@@ -418,11 +418,21 @@ class GoKartsGame {
             this.players.push(player);
             if (isLocal) {
                 this.localPlayer = player;
-                console.log('🏎️ LOCAL PLAYER PHYSICS - maxSpeed:', player.maxSpeed, 'acceleration:', player.acceleration, 'isLocal:', player.isLocal);
-                console.log('🏎️ LOCAL PLAYER DETAILS - id:', player.id, 'name:', player.name);
+                console.log(`🏎️ LOCAL PLAYER PHYSICS:`, {
+                    maxSpeed: player.maxSpeed,
+                    acceleration: player.acceleration,
+                    isLocal: player.isLocal,
+                    id: player.id,
+                    name: player.name
+                });
             } else {
-                console.log('👥 REMOTE PLAYER PHYSICS - maxSpeed:', player.maxSpeed, 'acceleration:', player.acceleration, 'isLocal:', player.isLocal);
-                console.log('👥 REMOTE PLAYER DETAILS - id:', player.id, 'name:', player.name);
+                console.log(`👥 REMOTE PLAYER PHYSICS:`, {
+                    maxSpeed: player.maxSpeed,
+                    acceleration: player.acceleration,
+                    isLocal: player.isLocal,
+                    id: player.id,
+                    name: player.name
+                });
             }
         });
         
@@ -1176,8 +1186,9 @@ class GoKartsGame {
         // Keep player on screen
         const canvasWidth = this.canvas.width || 1200;
         const canvasHeight = this.canvas.height || 800;
-        player.x = Math.max(30, Math.min(canvasWidth - 30, player.x));
-        player.y = Math.max(30, Math.min(canvasHeight - 30, player.y));
+        // Increased boundary to account for larger sprites (was 30, now 60)
+        player.x = Math.max(60, Math.min(canvasWidth - 60, player.x));
+        player.y = Math.max(60, Math.min(canvasHeight - 60, player.y));
     }
     
     updateAIPlayer(player) {
@@ -1529,14 +1540,15 @@ class GoKartsGame {
         this.ctx.rotate(player.angle);
         
         if (player.image && player.image.complete) {
-            this.ctx.drawImage(player.image, -20, -30, 40, 60);
+            // Increased size: was 40x60, now 80x120 (2x bigger)
+            this.ctx.drawImage(player.image, -40, -60, 80, 120);
         } else {
-            // Fallback rectangle - draw pointing upward
+            // Fallback rectangle - draw pointing upward (doubled size)
             this.ctx.fillStyle = player.isLocal ? '#4ecdc4' : '#ff6b6b';
-            this.ctx.fillRect(-15, -20, 30, 40);
-            // Add direction indicator
+            this.ctx.fillRect(-30, -40, 60, 80);
+            // Add direction indicator (doubled size)
             this.ctx.fillStyle = 'white';
-            this.ctx.fillRect(-3, -25, 6, 10);
+            this.ctx.fillRect(-6, -50, 12, 20);
         }
         
         this.ctx.restore();

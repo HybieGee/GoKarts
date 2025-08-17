@@ -705,11 +705,22 @@ export class LeaderboardDO {
   async recordWin(data) {
     const { playerId, playerName, raceTime } = data;
     
+    // Validate input
+    if (!playerId || !playerName) {
+      return new Response(JSON.stringify({ error: 'Missing playerId or playerName' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
     // Get current leaderboard data
     const leaderboard = await this.controller.storage.get('leaderboard') || {};
     
-    if (!leaderboard[playerId]) {
-      leaderboard[playerId] = {
+    // Create normalized player key (use playerId as primary key)
+    const playerKey = playerId;
+    
+    if (!leaderboard[playerKey]) {
+      leaderboard[playerKey] = {
         playerId,
         playerName,
         wins: 0,
@@ -720,13 +731,13 @@ export class LeaderboardDO {
     }
 
     // Update player stats
-    leaderboard[playerId].wins += 1;
-    leaderboard[playerId].totalRaces += 1;
-    leaderboard[playerId].playerName = playerName; // Update name in case it changed
-    leaderboard[playerId].lastWin = Date.now();
+    leaderboard[playerKey].wins += 1;
+    leaderboard[playerKey].totalRaces += 1;
+    leaderboard[playerKey].playerName = playerName; // Update name in case it changed
+    leaderboard[playerKey].lastWin = Date.now();
     
-    if (raceTime && (!leaderboard[playerId].bestTime || raceTime < leaderboard[playerId].bestTime)) {
-      leaderboard[playerId].bestTime = raceTime;
+    if (raceTime && (!leaderboard[playerKey].bestTime || raceTime < leaderboard[playerKey].bestTime)) {
+      leaderboard[playerKey].bestTime = raceTime;
     }
 
     // Save updated leaderboard
@@ -736,7 +747,7 @@ export class LeaderboardDO {
     const sortedData = await this.getLeaderboardData();
     this.broadcastUpdate(sortedData);
 
-    console.log(`🏆 LEADERBOARD: ${playerName} now has ${leaderboard[playerId].wins} wins`);
+    console.log(`🏆 LEADERBOARD: ${playerName} (${playerId}) now has ${leaderboard[playerKey].wins} wins`);
 
     return new Response(JSON.stringify({ success: true }), {
       headers: { 'Content-Type': 'application/json' }

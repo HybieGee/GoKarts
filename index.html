@@ -271,12 +271,12 @@
 
     <!-- Socket.io removed - using Cloudflare Workers instead -->
     <script>
-        // AGGRESSIVE cache busting - v29 LEADERBOARD FIXED
+        // AGGRESSIVE cache busting - v30 LEADERBOARD UI FIXED
         const cacheBust = Date.now() + Math.random().toString(36);
-        console.log('🔄 CACHE BUST v29:', cacheBust);
-        document.write('<script src="websocket-client.js?v=29-leaderboard&cb=' + cacheBust + '"><\/script>');
-        document.write('<script src="config.js?v=29-leaderboard&cb=' + cacheBust + '"><\/script>');
-        document.write('<script src="game.js?v=29-leaderboard&cb=' + cacheBust + '"><\/script>');
+        console.log('🔄 CACHE BUST v30:', cacheBust);
+        document.write('<script src="websocket-client.js?v=30-ui-fixed&cb=' + cacheBust + '"><\/script>');
+        document.write('<script src="config.js?v=30-ui-fixed&cb=' + cacheBust + '"><\/script>');
+        document.write('<script src="game.js?v=30-ui-fixed&cb=' + cacheBust + '"><\/script>');
     </script>
 </body>
 </html>

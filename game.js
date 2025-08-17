@@ -1,11 +1,11 @@
-// GoKarts Racing Game - Cache Bust v29 - 2024-12-16-22:30
-// LEADERBOARD FIXED + FRAME RATE INDEPENDENT: maxSpeed=3.5, acceleration=0.25
-const GAME_VERSION = 'v29-leaderboard-fixed-2024-12-16-22:30';
+// GoKarts Racing Game - Cache Bust v30 - 2024-12-16-22:45
+// LEADERBOARD UI FIXED + NO DUPLICATES: maxSpeed=3.5, acceleration=0.25
+const GAME_VERSION = 'v30-leaderboard-ui-fixed-2024-12-16-22:45';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
 console.log('📊 EXPECTED PHYSICS: maxSpeed=3.5, acceleration=0.25');
 console.log('🔧 CACHE BUSTER: Timestamp =', Date.now());
 console.log('🎯 FRAME RATE FIX: Delta time movement implemented!');
-console.log('⚡ v29 UPDATE: Complete leaderboard system + frame rate fix!');
+console.log('⚡ v30 UPDATE: Fixed leaderboard UI sizing + duplicate prevention!');
 
 class GoKartsGame {
     constructor() {
@@ -1674,19 +1674,36 @@ class GoKartsGame {
         leaderboardList.innerHTML = '';
         
         // Use global leaderboard if available, otherwise local
-        const leaderboardData = this.globalLeaderboard || this.leaderboard;
+        let leaderboardData = this.globalLeaderboard || this.leaderboard;
         
-        if (leaderboardData.length === 0) {
-            leaderboardList.innerHTML = '<p style="text-align: center; padding: 20px;">No races completed yet!</p>';
+        // Deduplicate entries by playerId (in case of backend issues)
+        if (Array.isArray(leaderboardData)) {
+            const seen = new Set();
+            leaderboardData = leaderboardData.filter(entry => {
+                const key = entry.playerId || entry.name;
+                if (seen.has(key)) {
+                    console.warn('Duplicate leaderboard entry removed:', entry);
+                    return false;
+                }
+                seen.add(key);
+                return true;
+            });
+        }
+        
+        if (!leaderboardData || leaderboardData.length === 0) {
+            leaderboardList.innerHTML = '<p style="text-align: center; padding: 20px; color: rgba(255,255,255,0.7);">No races completed yet!<br><br>🏁 Finish a race to appear on the leaderboard!</p>';
             return;
         }
         
         // Add header to show if it's global or local leaderboard
         const headerDiv = document.createElement('div');
         headerDiv.style.textAlign = 'center';
-        headerDiv.style.padding = '10px';
+        headerDiv.style.padding = '10px 15px';
         headerDiv.style.fontWeight = 'bold';
         headerDiv.style.color = this.globalLeaderboard ? '#4ecdc4' : '#ff6b6b';
+        headerDiv.style.background = 'rgba(0,0,0,0.3)';
+        headerDiv.style.borderRadius = '8px';
+        headerDiv.style.marginBottom = '10px';
         headerDiv.textContent = this.globalLeaderboard ? '🌐 Global Leaderboard' : '📱 Local Leaderboard';
         leaderboardList.appendChild(headerDiv);
         

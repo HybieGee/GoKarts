@@ -20,7 +20,7 @@ new_classes = ["LeaderboardDO"]
 
 [vars]
 ROOM_SIZE = "5"
-ALLOWED_ORIGINS = "https://go-karts.vercel.app,https://*.vercel.app,https://gokarts.online"
+ALLOWED_ORIGINS = "https://go-karts.vercel.app,https://*.vercel.app,https://grokkarts.online,https://gokarts.online"
 QUEUE_TTL_MS = "20000"
 ROOM_HEARTBEAT_MS = "30000"
 
@@ -40,7 +40,7 @@ bindings = [
 ]
 [env.production.vars]
 ROOM_SIZE = "2"
-ALLOWED_ORIGINS = "https://go-karts.vercel.app,https://*.vercel.app,https://gokarts.online"
+ALLOWED_ORIGINS = "https://go-karts.vercel.app,https://*.vercel.app,https://grokkarts.online,https://gokarts.online"
 QUEUE_TTL_MS = "20000"
 ROOM_HEARTBEAT_MS = "30000"
 ENVIRONMENT = "production"

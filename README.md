@@ -109,7 +109,7 @@ QUEUE_TTL_MS=20000            # 20s queue timeout
 ROOM_HEARTBEAT_MS=30000       # 30s room heartbeat timeout
 
 # CORS Origins (comma-separated)
-ALLOWED_ORIGINS=https://go-karts.vercel.app,https://*.vercel.app,https://gokarts.online
+ALLOWED_ORIGINS=https://go-karts.vercel.app,https://*.vercel.app,https://grokkarts.online
 
 # Environment
 ENVIRONMENT=development        # Use 'production' to disable debug endpoints

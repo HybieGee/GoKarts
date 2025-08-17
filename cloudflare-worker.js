@@ -118,7 +118,7 @@ export class MatchmakerDO {
     this.controller = controller;
     this.env = env;
     this.queue = [];
-    this.roomSize = 5;
+    this.roomSize = parseInt(env.ROOM_SIZE) || 5;
     this.minPlayersToStart = 2;
     this.ttlMs = 20000; // 20 seconds timeout
     this.matchStartTimeout = null; // Countdown timer
@@ -126,6 +126,8 @@ export class MatchmakerDO {
     this.countdownStartDelay = 2000; // 2 second delay before starting countdown
     this.lastMatchResult = null; // Store match result for polling players
     this.matchedPlayers = new Set(); // Track which players got their match
+    
+    console.log(`🔧 MatchmakerDO initialized - roomSize: ${this.roomSize}, minPlayers: ${this.minPlayersToStart}`);
   }
 
   async fetch(request) {
@@ -180,9 +182,12 @@ export class MatchmakerDO {
     console.log(`🏁 [${playerId}] ENQUEUE - queue size: ${this.queue.length}`);
 
     // Check if we have enough players to start countdown
+    console.log(`🔍 Queue check: ${this.queue.length} players, minToStart: ${this.minPlayersToStart}, roomSize: ${this.roomSize}, timeout: ${this.matchStartTimeout ? 'ACTIVE' : 'NONE'}`);
+    
     if (this.queue.length >= this.minPlayersToStart) {
       // If we have max players, start immediately
       if (this.queue.length >= this.roomSize) {
+        console.log(`🚀 IMMEDIATE START - Room full with ${this.queue.length} players`);
         return await this.startMatch();
       }
       
@@ -191,17 +196,25 @@ export class MatchmakerDO {
         console.log(`⏳ Waiting ${this.countdownStartDelay/1000}s before starting countdown (${this.queue.length} players in queue)`);
         // Add a small delay before starting countdown to allow rapid joins
         setTimeout(() => {
+          console.log(`⏰ Delay expired! Queue size: ${this.queue.length}, timeout exists: ${this.matchStartTimeout ? 'YES' : 'NO'}`);
           if (this.queue.length >= this.minPlayersToStart && !this.matchStartTimeout) {
             console.log(`⏰ Starting ${this.matchCountdownMs/1000}s countdown with ${this.queue.length} players`);
             this.matchStartTimeout = setTimeout(async () => {
+              console.log(`🎯 Countdown finished! Starting match with ${this.queue.length} players`);
               if (this.queue.length >= this.minPlayersToStart) {
                 await this.startMatch();
               }
               this.matchStartTimeout = null;
             }, this.matchCountdownMs);
+          } else {
+            console.log(`❌ Countdown not started - insufficient players or timeout already exists`);
           }
         }, this.countdownStartDelay);
+      } else {
+        console.log(`⏰ Countdown already running - not starting new one`);
       }
+    } else {
+      console.log(`⏸️ Not enough players yet: ${this.queue.length}/${this.minPlayersToStart}`);
     }
 
     // Player is now queued

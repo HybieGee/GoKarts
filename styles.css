@@ -18,7 +18,7 @@
 
 body {
     font-family: 'Rajdhani', sans-serif;
-    background: var(--primary-gradient);
+    background: url('background.png') center center / cover no-repeat;
     color: white;
     overflow: hidden;
     min-height: 100vh;
@@ -48,11 +48,12 @@ body {
 
 .screen-container {
     text-align: center;
-    background: var(--glass-bg);
+    background: rgba(0, 0, 0, 0.85);
     padding: 40px;
     border-radius: 20px;
     backdrop-filter: blur(15px);
-    border: 1px solid var(--glass-border);
+    border: 3px solid #ffdd00;
+    box-shadow: 0 4px 20px rgba(255, 221, 0, 0.3);
 }
 
 /* Hero Container */
@@ -65,9 +66,9 @@ body {
     justify-content: space-between;
     padding: 2rem;
     background: linear-gradient(135deg, 
-        rgba(102, 126, 234, 0.9) 0%, 
-        rgba(118, 75, 162, 0.9) 50%,
-        rgba(45, 45, 45, 0.95) 100%);
+        rgba(0, 0, 0, 0.7) 0%, 
+        rgba(0, 0, 0, 0.5) 50%,
+        rgba(0, 0, 0, 0.8) 100%);
 }
 
 /* Background Animation */
@@ -222,14 +223,16 @@ body {
 }
 
 .menu-btn.primary {
-    background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+    background: linear-gradient(45deg, #ff4500, #ff6b00);
     color: white;
-    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+    box-shadow: 0 4px 15px rgba(255, 69, 0, 0.6);
+    border: 3px solid #ffdd00;
 }
 
 .menu-btn.primary:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.6);
+    box-shadow: 0 8px 25px rgba(255, 69, 0, 0.8);
+    border-color: #fff200;
 }
 
 .menu-btn.primary .btn-glow {
@@ -247,32 +250,36 @@ body {
 }
 
 .menu-btn.secondary {
-    background: var(--glass-bg);
+    background: linear-gradient(45deg, rgba(0, 200, 0, 0.8), rgba(0, 150, 50, 0.8));
     color: white;
-    border: 2px solid var(--glass-border);
+    border: 3px solid #00ff00;
     backdrop-filter: blur(10px);
+    box-shadow: 0 4px 15px rgba(0, 200, 0, 0.4);
 }
 
 .menu-btn.secondary:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: linear-gradient(45deg, rgba(0, 255, 0, 0.9), rgba(0, 200, 50, 0.9));
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 8px 25px rgba(0, 255, 0, 0.6);
+    border-color: #88ff88;
 }
 
 /* Contract Card */
 .contract-card {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    background: rgba(0, 0, 0, 0.8);
+    border: 3px solid #ffdd00;
     border-radius: 16px;
     padding: 1.5rem;
     backdrop-filter: blur(15px);
     margin-bottom: 1.5rem;
     transition: all 0.3s ease;
+    box-shadow: 0 4px 20px rgba(255, 221, 0, 0.3);
 }
 
 .contract-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 10px 30px rgba(255, 221, 0, 0.5);
+    border-color: #fff200;
 }
 
 .card-header {
@@ -882,9 +889,9 @@ body {
 
 /* Leaderboard */
 .leaderboard-list {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.85);
     border-radius: 15px;
-    border: 2px solid rgba(78, 205, 196, 0.3);
+    border: 3px solid #ffdd00;
     padding: 15px;
     margin: 20px 0;
     min-width: 500px;
@@ -892,6 +899,7 @@ body {
     height: 400px;
     overflow-y: auto;
     overflow-x: hidden;
+    box-shadow: 0 4px 20px rgba(255, 221, 0, 0.3);
 }
 
 /* Custom scrollbar */
@@ -905,12 +913,12 @@ body {
 }
 
 .leaderboard-list::-webkit-scrollbar-thumb {
-    background: linear-gradient(45deg, #4ecdc4, #44a08d);
+    background: linear-gradient(45deg, #ffdd00, #ff8800);
     border-radius: 4px;
 }
 
 .leaderboard-list::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(45deg, #44a08d, #4ecdc4);
+    background: linear-gradient(45deg, #fff200, #ffaa00);
 }
 
 .leaderboard-entry {
@@ -919,33 +927,37 @@ body {
     align-items: center;
     padding: 12px 15px;
     margin: 8px 0;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.6);
     border-radius: 8px;
-    border-left: 4px solid #4ecdc4;
+    border-left: 4px solid #ffdd00;
+    border: 2px solid rgba(255, 221, 0, 0.3);
     transition: all 0.3s ease;
     min-height: 50px;
 }
 
 .leaderboard-entry:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 221, 0, 0.2);
     transform: translateX(5px);
+    border-color: #fff200;
 }
 
 .leaderboard-entry.top {
-    border-left-color: #ffd700;
-    background: rgba(255, 215, 0, 0.1);
+    border-left-color: #ff4500;
+    background: rgba(255, 69, 0, 0.3);
     font-size: 1.1rem;
+    border-color: #ff4500;
+    box-shadow: 0 0 20px rgba(255, 69, 0, 0.4);
 }
 
 .leaderboard-entry.top .leaderboard-rank {
-    color: #ffd700;
+    color: #fff200;
 }
 
 .leaderboard-rank {
     font-size: 1.2rem;
     font-weight: bold;
     min-width: 50px;
-    color: #4ecdc4;
+    color: #ffdd00;
 }
 
 .leaderboard-name {
@@ -965,7 +977,7 @@ body {
 }
 
 .leaderboard-stats .wins {
-    color: #4ecdc4;
+    color: #00ff88;
     font-weight: bold;
 }
 
@@ -975,14 +987,14 @@ body {
 }
 
 .leaderboard-stats .winrate {
-    color: #ffd700;
+    color: #ff8800;
     font-size: 0.9rem;
     font-weight: 600;
 }
 
 .leaderboard-wins {
     font-weight: bold;
-    color: #4ecdc4;
+    color: #00ff88;
 }
 
 /* Waiting Screen */

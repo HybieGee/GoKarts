@@ -1,11 +1,10 @@
-// GoKarts Racing Game - FINAL FIX v24 - 2024-12-16-22:00
-// FORCED REFRESH: New filename and dynamic timestamps
-const GAME_VERSION = 'v24-final-fix-2024-12-16-22:00';
+// GoKarts Racing Game - SPEED LIMITER v24 - 2024-12-16-22:15
+// CRITICAL FIX: Added max movement per frame limiter for remote players
+const GAME_VERSION = 'v24-speed-limiter-2024-12-16-22:15';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
 console.log('✅ IF YOU SEE THIS, YOU HAVE THE LATEST VERSION');
-console.log('🔍 DEBUG MODE: Comprehensive movement tracking enabled');
-console.log('📊 Watch for: LARGE REMOTE MOVEMENT, SPEED ANALYSIS, SENDING UPDATE');
-console.log('🏁 SPEEDS: maxSpeed=4, acceleration=0.3, lerp=0.10 (reduced)');
+console.log('🚧 SPEED LIMITER: Remote movement capped at 4 pixels/frame');
+console.log('📊 Watch for: SPEED LIMITED messages');
 
 class GoKartsGame {
     constructor() {
@@ -506,10 +505,27 @@ class GoKartsGame {
                 player.angle = data.angle;
                 console.log('📍 SNAP: Distance too large, snapping to position');
             } else {
-                // Smooth interpolation for network updates
-                const lerpFactor = 0.10; // REDUCED EVEN MORE to slow down remote players
-                player.x = player.x + (targetX - player.x) * lerpFactor;
-                player.y = player.y + (targetY - player.y) * lerpFactor;
+                // CRITICAL FIX: Limit maximum movement per frame
+                const maxMovePerFrame = 4; // Same as maxSpeed
+                const dx = targetX - player.x;
+                const dy = targetY - player.y;
+                const moveDistance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (moveDistance > maxMovePerFrame) {
+                    // Cap movement to maxSpeed
+                    const ratio = maxMovePerFrame / moveDistance;
+                    player.x += dx * ratio;
+                    player.y += dy * ratio;
+                    console.log('⚠️ SPEED LIMITED:', {
+                        attempted: moveDistance.toFixed(1),
+                        limited: maxMovePerFrame
+                    });
+                } else {
+                    // Normal interpolation for small movements
+                    const lerpFactor = 0.05; // VERY LOW interpolation
+                    player.x = player.x + (targetX - player.x) * lerpFactor;
+                    player.y = player.y + (targetY - player.y) * lerpFactor;
+                }
                 
                 // Angle interpolation
                 let targetAngle = data.angle;

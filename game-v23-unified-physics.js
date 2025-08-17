@@ -1,9 +1,10 @@
-// GoKarts Racing Game - UNIFIED PHYSICS v23 - 2024-12-16-21:15
-// FIXED: All players use same physics + restored normal speeds
-const GAME_VERSION = 'v23-unified-physics-normal-speed-2024-12-16-21:15';
+// GoKarts Racing Game - UNIFIED PHYSICS v23 - 2024-12-16-21:20
+// CRITICAL FIX: Disabled speed override from network updates
+const GAME_VERSION = 'v23-unified-physics-no-speed-override-2024-12-16-21:20';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
 console.log('⚡ UNIFIED PHYSICS: All players use same physics system');
-console.log('🏁 NORMAL SPEEDS RESTORED: maxSpeed=4, acceleration=0.3');
+console.log('🚫 SPEED OVERRIDE DISABLED: Network updates no longer override local physics');
+console.log('🏁 NORMAL SPEEDS: maxSpeed=4, acceleration=0.3');
 
 class GoKartsGame {
     constructor() {
@@ -504,8 +505,8 @@ class GoKartsGame {
             // Update game state
             player.lapCount = data.lapCount;
             player.nextCheckpoint = data.nextCheckpoint;
-            // Update speed from server data
-            player.speed = data.speed || 0;
+            // DON'T override speed - let unified physics handle it
+            // player.speed = data.speed || 0; // DISABLED: This was overriding unified physics!
             
             // Store timestamp for prediction
             player.lastUpdateTime = Date.now();
@@ -1136,6 +1137,23 @@ class GoKartsGame {
             if (Math.abs(player.speed) < 0.1) {
                 player.speed = 0;
             }
+        }
+        
+        // DETAILED PHYSICS DEBUG - Log every player's physics every few frames
+        if (Math.random() < 0.02) { // 2% chance per frame
+            console.log(`${player.isLocal ? '🚗 LOCAL' : '👥 REMOTE'} PLAYER PHYSICS:`, {
+                playerId: player.id || 'local',
+                speed: player.speed.toFixed(3),
+                maxSpeed: player.maxSpeed,
+                acceleration: player.acceleration,
+                accelerating: accelerating,
+                braking: braking,
+                friction: player.friction,
+                velocity: {
+                    x: player.velocity.x.toFixed(3),
+                    y: player.velocity.y.toFixed(3)
+                }
+            });
         }
         
         // Move in the direction the kart is facing 

@@ -1,9 +1,9 @@
-// GoKarts Game Configuration
+// Grok Karts Online Configuration
 const GAME_CONFIG = {
     // Contract Information
     CONTRACT_ADDRESS: "TBD_PUMP_FUN_ADDRESS", // Will be updated after Pump.fun launch
-    CONTRACT_NAME: "GoKarts Token",
-    CONTRACT_SYMBOL: "GOKART",
+    CONTRACT_NAME: "Grok Karts Token",
+    CONTRACT_SYMBOL: "GROKKART",
     
     // Blockchain Network
     NETWORK: {
@@ -28,7 +28,7 @@ const GAME_CONFIG = {
     
     // UI/Branding
     BRANDING: {
-        gameTitle: "🏎️ GoKarts Racing",
+        gameTitle: "🏎️ Grok Karts Online",
         tagline: "Race to the Moon with Crypto Speed!",
         description: "The ultimate crypto racing game where speed meets DeFi. Race, win, and earn tokens!",
         
@@ -45,16 +45,16 @@ const GAME_CONFIG = {
         "🎯 Precision checkpoint system", 
         "🏆 Competitive leaderboards",
         "💎 Launching on Pump.fun",
-        "⛽ Verifiable gas fee rewards",
+        "🗺️ New maps every 30 minutes",
         "📱 Mobile app coming soon"
     ],
     
-    // Rewards System
-    REWARDS: {
-        gasFeeGiveaway: {
+    // Dynamic Content System
+    DYNAMIC_CONTENT: {
+        mapRotation: {
             enabled: true,
             interval: 30, // minutes
-            description: "Top leaderboard player receives gas fee rewards from token treasury every 30 minutes with verifiable on-chain transactions!"
+            description: "Experience fresh racing challenges with dynamically generated tracks that rotate every 30 minutes for endless variety!"
         }
     }
 };

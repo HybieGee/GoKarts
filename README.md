@@ -1,4 +1,4 @@
-# 🏎️ GoKarts Racing - Multiplayer Crypto Racing Game
+# 🏎️ Grok Karts Online - Multiplayer Crypto Racing Game
 
 A real-time multiplayer racing game built for the crypto community, launching on Solana with Pump.fun integration.
 
@@ -7,7 +7,7 @@ A real-time multiplayer racing game built for the crypto community, launching on
 - 🏁 **Real-time multiplayer racing** - Race against up to 5 players
 - 🎯 **Precision checkpoint system** - Fair racing with validated checkpoints  
 - 🏆 **Global leaderboards** - Track wins across all players
-- ⛽ **Gas fee rewards** - Top players get gas fees covered every 30 minutes
+- 🗺️ **Dynamic maps** - New racing tracks every 30 minutes
 - 💎 **Pump.fun integration** - Easy token purchasing
 - 📱 **Mobile responsive** - Play on any device
 

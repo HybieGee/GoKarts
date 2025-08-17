@@ -122,7 +122,8 @@ export class MatchmakerDO {
     this.minPlayersToStart = 2;
     this.ttlMs = 20000; // 20 seconds timeout
     this.matchStartTimeout = null; // Countdown timer
-    this.matchCountdownMs = 10000; // 10 seconds to wait for more players
+    this.matchCountdownMs = 15000; // 15 seconds to wait for more players
+    this.countdownStartDelay = 2000; // 2 second delay before starting countdown
   }
 
   async fetch(request) {
@@ -183,15 +184,21 @@ export class MatchmakerDO {
         return await this.startMatch();
       }
       
-      // If countdown not already started, start it
+      // If countdown not already started, start it with a delay
       if (!this.matchStartTimeout) {
-        console.log(`⏰ Starting ${this.matchCountdownMs/1000}s countdown with ${this.queue.length} players`);
-        this.matchStartTimeout = setTimeout(async () => {
-          if (this.queue.length >= this.minPlayersToStart) {
-            await this.startMatch();
+        console.log(`⏳ Waiting ${this.countdownStartDelay/1000}s before starting countdown (${this.queue.length} players in queue)`);
+        // Add a small delay before starting countdown to allow rapid joins
+        setTimeout(() => {
+          if (this.queue.length >= this.minPlayersToStart && !this.matchStartTimeout) {
+            console.log(`⏰ Starting ${this.matchCountdownMs/1000}s countdown with ${this.queue.length} players`);
+            this.matchStartTimeout = setTimeout(async () => {
+              if (this.queue.length >= this.minPlayersToStart) {
+                await this.startMatch();
+              }
+              this.matchStartTimeout = null;
+            }, this.matchCountdownMs);
           }
-          this.matchStartTimeout = null;
-        }, this.matchCountdownMs);
+        }, this.countdownStartDelay);
       }
     }
 
@@ -256,15 +263,21 @@ export class MatchmakerDO {
         return matchResult;
       }
       
-      // If countdown not already started, start it
+      // If countdown not already started, start it with a delay
       if (!this.matchStartTimeout) {
-        console.log(`⏰ Starting ${this.matchCountdownMs/1000}s countdown with ${this.queue.length} players`);
-        this.matchStartTimeout = setTimeout(async () => {
-          if (this.queue.length >= this.minPlayersToStart) {
-            await this.startMatch();
+        console.log(`⏳ Waiting ${this.countdownStartDelay/1000}s before starting countdown (${this.queue.length} players in queue)`);
+        // Add a small delay before starting countdown to allow rapid joins
+        setTimeout(() => {
+          if (this.queue.length >= this.minPlayersToStart && !this.matchStartTimeout) {
+            console.log(`⏰ Starting ${this.matchCountdownMs/1000}s countdown with ${this.queue.length} players`);
+            this.matchStartTimeout = setTimeout(async () => {
+              if (this.queue.length >= this.minPlayersToStart) {
+                await this.startMatch();
+              }
+              this.matchStartTimeout = null;
+            }, this.matchCountdownMs);
           }
-          this.matchStartTimeout = null;
-        }, this.matchCountdownMs);
+        }, this.countdownStartDelay);
       }
     }
 

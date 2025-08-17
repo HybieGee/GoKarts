@@ -63,6 +63,19 @@ export default {
         });
       }
       
+      // Leaderboard API endpoint
+      if (url.pathname === '/api/leaderboard' && request.method === 'GET') {
+        const leaderboardId = env.LEADERBOARD.idFromName('global-leaderboard');
+        const leaderboard = env.LEADERBOARD.get(leaderboardId);
+        const response = await leaderboard.fetch(new Request('https://dummy-url/get-leaderboard', {
+          method: 'GET'
+        }));
+        const result = await response.json();
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
       // Health check
       if (url.pathname === '/health') {
         return new Response('GoKarts Multiplayer Server is running!', { 
@@ -80,6 +93,12 @@ export default {
         const roomDOId = env.ROOM_DO.idFromName(roomId);
         const roomDO = env.ROOM_DO.get(roomDOId);
         return roomDO.fetch(request);
+      }
+      
+      if (url.pathname === '/ws/leaderboard') {
+        const leaderboardId = env.LEADERBOARD.idFromName('global-leaderboard');
+        const leaderboard = env.LEADERBOARD.get(leaderboardId);
+        return leaderboard.fetch(request);
       }
       
       return new Response('WebSocket endpoint not found', { status: 404 });
@@ -410,6 +429,9 @@ export class RoomDO {
       case 'STATE':
         this.handleGameState(websocket, message);
         break;
+      case 'RACE_FINISH':
+        this.handleRaceFinish(websocket, message);
+        break;
       default:
         console.warn('Unknown message type:', message.t);
     }
@@ -470,6 +492,38 @@ export class RoomDO {
         t: "PEER_STATE",
         playerId: member.playerId,
         pos: message.pos
+      });
+    }
+  }
+
+  async handleRaceFinish(websocket, message) {
+    const member = Array.from(this.members.values()).find(m => m.websocket === websocket);
+    if (member && message.playerId && message.playerName) {
+      console.log(`🏆 [${this.roomId}] RACE_WINNER: ${message.playerName} (${message.playerId})`);
+      
+      // Report win to leaderboard
+      try {
+        const leaderboardId = this.env.LEADERBOARD.idFromName('global-leaderboard');
+        const leaderboard = this.env.LEADERBOARD.get(leaderboardId);
+        await leaderboard.fetch(new Request('https://dummy-url/record-win', {
+          method: 'POST',
+          body: JSON.stringify({
+            playerId: message.playerId,
+            playerName: message.playerName,
+            raceTime: message.raceTime || 0
+          })
+        }));
+      } catch (error) {
+        console.error('Failed to record win:', error);
+      }
+      
+      // Broadcast race end to all players
+      this.broadcast({
+        t: "RACE_END",
+        winner: {
+          playerId: message.playerId,
+          playerName: message.playerName
+        }
       });
     }
   }
@@ -582,5 +636,147 @@ export class RoomDO {
 
   generateId() {
     return Math.random().toString(36).substr(2, 9);
+  }
+}
+
+// LeaderboardDO - Global leaderboard with persistent storage
+export class LeaderboardDO {
+  constructor(controller, env) {
+    this.controller = controller;
+    this.env = env;
+    this.subscribers = new Set(); // WebSocket connections for live updates
+  }
+
+  async fetch(request) {
+    const url = new URL(request.url);
+    const upgradeHeader = request.headers.get('Upgrade');
+
+    // Handle WebSocket connections
+    if (upgradeHeader && upgradeHeader === 'websocket') {
+      return this.handleWebSocket(request);
+    }
+
+    // Handle REST API endpoints
+    if (url.pathname === '/get-leaderboard' && request.method === 'GET') {
+      return this.getLeaderboard();
+    }
+
+    if (url.pathname === '/record-win' && request.method === 'POST') {
+      const data = await request.json();
+      return this.recordWin(data);
+    }
+
+    return new Response('Not Found', { status: 404 });
+  }
+
+  async handleWebSocket(request) {
+    const webSocketPair = new WebSocketPair();
+    const [client, server] = Object.values(webSocketPair);
+    server.accept();
+
+    // Add to subscribers for live updates
+    this.subscribers.add(server);
+
+    server.addEventListener('close', () => {
+      this.subscribers.delete(server);
+    });
+
+    server.addEventListener('error', () => {
+      this.subscribers.delete(server);
+    });
+
+    // Send current leaderboard data immediately
+    const leaderboardData = await this.getLeaderboardData();
+    this.sendToClient(server, {
+      type: 'leaderboard-update',
+      data: leaderboardData
+    });
+
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async getLeaderboard() {
+    const data = await this.getLeaderboardData();
+    return new Response(JSON.stringify(data), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  async recordWin(data) {
+    const { playerId, playerName, raceTime } = data;
+    
+    // Get current leaderboard data
+    const leaderboard = await this.controller.storage.get('leaderboard') || {};
+    
+    if (!leaderboard[playerId]) {
+      leaderboard[playerId] = {
+        playerId,
+        playerName,
+        wins: 0,
+        totalRaces: 0,
+        bestTime: null,
+        lastWin: null
+      };
+    }
+
+    // Update player stats
+    leaderboard[playerId].wins += 1;
+    leaderboard[playerId].totalRaces += 1;
+    leaderboard[playerId].playerName = playerName; // Update name in case it changed
+    leaderboard[playerId].lastWin = Date.now();
+    
+    if (raceTime && (!leaderboard[playerId].bestTime || raceTime < leaderboard[playerId].bestTime)) {
+      leaderboard[playerId].bestTime = raceTime;
+    }
+
+    // Save updated leaderboard
+    await this.controller.storage.put('leaderboard', leaderboard);
+
+    // Broadcast update to all subscribers
+    const sortedData = await this.getLeaderboardData();
+    this.broadcastUpdate(sortedData);
+
+    console.log(`🏆 LEADERBOARD: ${playerName} now has ${leaderboard[playerId].wins} wins`);
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  async getLeaderboardData() {
+    const leaderboard = await this.controller.storage.get('leaderboard') || {};
+    
+    // Convert to array and sort by wins (descending), then by win rate
+    const sortedEntries = Object.values(leaderboard)
+      .sort((a, b) => {
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        const aWinRate = a.totalRaces > 0 ? a.wins / a.totalRaces : 0;
+        const bWinRate = b.totalRaces > 0 ? b.wins / b.totalRaces : 0;
+        return bWinRate - aWinRate;
+      })
+      .slice(0, 100); // Top 100 players
+
+    return sortedEntries;
+  }
+
+  broadcastUpdate(data) {
+    const message = JSON.stringify({
+      type: 'leaderboard-update',
+      data
+    });
+
+    this.subscribers.forEach(client => {
+      this.sendToClient(client, message);
+    });
+  }
+
+  sendToClient(client, data) {
+    try {
+      const message = typeof data === 'string' ? data : JSON.stringify(data);
+      client.send(message);
+    } catch (error) {
+      console.error('Failed to send to client:', error);
+      this.subscribers.delete(client);
+    }
   }
 }

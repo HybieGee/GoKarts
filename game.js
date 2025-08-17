@@ -1,11 +1,11 @@
-// GoKarts Racing Game - Cache Bust v28 - 2024-12-16-22:15
-// FRAME RATE INDEPENDENT + GOOD RACING SPEED: maxSpeed=3.5, acceleration=0.25
-const GAME_VERSION = 'v28-good-racing-speed-2024-12-16-22:15';
+// GoKarts Racing Game - Cache Bust v29 - 2024-12-16-22:30
+// LEADERBOARD FIXED + FRAME RATE INDEPENDENT: maxSpeed=3.5, acceleration=0.25
+const GAME_VERSION = 'v29-leaderboard-fixed-2024-12-16-22:30';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
 console.log('📊 EXPECTED PHYSICS: maxSpeed=3.5, acceleration=0.25');
 console.log('🔧 CACHE BUSTER: Timestamp =', Date.now());
 console.log('🎯 FRAME RATE FIX: Delta time movement implemented!');
-console.log('⚡ v28 UPDATE: Frame rate fix + good racing speed limits!');
+console.log('⚡ v29 UPDATE: Complete leaderboard system + frame rate fix!');
 
 class GoKartsGame {
     constructor() {
@@ -1336,6 +1336,8 @@ class GoKartsGame {
             this.socket.sendRoomMessage({
                 t: "RACE_FINISH",
                 playerId: winner.id,
+                playerName: winner.isLocal ? this.playerName : winner.name,
+                raceTime: Date.now() - this.raceStartTime,
                 finalTime: Date.now() - this.raceStartTime,
                 lapCount: winner.lapCount
             });

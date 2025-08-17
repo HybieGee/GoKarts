@@ -271,12 +271,12 @@
 
     <!-- Socket.io removed - using Cloudflare Workers instead -->
     <script>
-        // AGGRESSIVE cache busting - v28 GOOD RACING SPEED
+        // AGGRESSIVE cache busting - v29 LEADERBOARD FIXED
         const cacheBust = Date.now() + Math.random().toString(36);
-        console.log('🔄 CACHE BUST v28:', cacheBust);
-        document.write('<script src="websocket-client.js?v=28-racing-speed&cb=' + cacheBust + '"><\/script>');
-        document.write('<script src="config.js?v=28-racing-speed&cb=' + cacheBust + '"><\/script>');
-        document.write('<script src="game.js?v=28-racing-speed&cb=' + cacheBust + '"><\/script>');
+        console.log('🔄 CACHE BUST v29:', cacheBust);
+        document.write('<script src="websocket-client.js?v=29-leaderboard&cb=' + cacheBust + '"><\/script>');
+        document.write('<script src="config.js?v=29-leaderboard&cb=' + cacheBust + '"><\/script>');
+        document.write('<script src="game.js?v=29-leaderboard&cb=' + cacheBust + '"><\/script>');
     </script>
 </body>
 </html>

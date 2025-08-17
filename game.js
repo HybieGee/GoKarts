@@ -1,8 +1,9 @@
-// GoKarts Racing Game - Cache Bust v21 - 2024-12-16-21:00
+// GoKarts Racing Game - Cache Bust v25 - 2024-12-16-21:30
 // EXTREME SPEED DEBUG: maxSpeed=1, acceleration=0.08
-const GAME_VERSION = 'v21-extreme-debug-2024-12-16-21:05';
+const GAME_VERSION = 'v25-extreme-debug-2024-12-16-21:30';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
 console.log('📊 EXPECTED PHYSICS: maxSpeed=1, acceleration=0.08');
+console.log('🔧 CACHE BUSTER: Timestamp =', Date.now());
 
 class GoKartsGame {
     constructor() {
@@ -410,22 +411,21 @@ class GoKartsGame {
             this.players.push(player);
             if (isLocal) {
                 this.localPlayer = player;
-                console.log('🏎️ LOCAL PLAYER PHYSICS:', {
-                    maxSpeed: player.maxSpeed,
-                    acceleration: player.acceleration,
-                    isLocal: player.isLocal
-                });
+                console.log('🏎️ LOCAL PLAYER PHYSICS - maxSpeed:', player.maxSpeed, 'acceleration:', player.acceleration, 'isLocal:', player.isLocal);
+                console.log('🏎️ LOCAL PLAYER DETAILS - id:', player.id, 'name:', player.name);
             } else {
-                console.log('👥 REMOTE PLAYER PHYSICS:', {
-                    id: player.id,
-                    maxSpeed: player.maxSpeed,
-                    acceleration: player.acceleration,
-                    isLocal: player.isLocal
-                });
+                console.log('👥 REMOTE PLAYER PHYSICS - maxSpeed:', player.maxSpeed, 'acceleration:', player.acceleration, 'isLocal:', player.isLocal);
+                console.log('👥 REMOTE PLAYER DETAILS - id:', player.id, 'name:', player.name);
             }
         });
         
         this.raceFinished = false;
+        
+        // PHYSICS VERIFICATION SUMMARY
+        console.log('📋 PHYSICS VERIFICATION SUMMARY:');
+        this.players.forEach((player, index) => {
+            console.log(`Player ${index + 1}: ${player.isLocal ? 'LOCAL' : 'REMOTE'} | maxSpeed: ${player.maxSpeed} | acceleration: ${player.acceleration} | id: ${player.id}`);
+        });
         
         // Start countdown sequence
         this.startCountdown();
@@ -479,6 +479,11 @@ class GoKartsGame {
             
             // Calculate distance to determine if we need to snap or interpolate
             const distance = Math.sqrt((targetX - player.x) ** 2 + (targetY - player.y) ** 2);
+            
+            // Debug log movement - every 1% chance to avoid spam
+            if (Math.random() < 0.01) {
+                console.log('🌐 REMOTE PLAYER MOVE - id:', data.playerId, 'distance:', distance.toFixed(2), 'maxSpeed:', player.maxSpeed, 'acceleration:', player.acceleration);
+            }
             
             // If the distance is too large, snap to prevent teleporting appearance
             // This helps when players join mid-race or there's network lag
@@ -1098,11 +1103,7 @@ class GoKartsGame {
                 accelerating = true;
                 // Debug log every 100 frames
                 if (Math.random() < 0.01) {
-                    console.log('🚗 ACCELERATING:', {
-                        speed: player.speed.toFixed(2),
-                        maxSpeed: player.maxSpeed,
-                        acceleration: player.acceleration
-                    });
+                    console.log('🚗 LOCAL ACCELERATING - speed:', player.speed.toFixed(2), 'maxSpeed:', player.maxSpeed, 'acceleration:', player.acceleration, 'id:', player.id);
                 }
             } else if (this.keys['s'] || this.keys['ArrowDown']) {
                 player.speed -= player.deceleration;

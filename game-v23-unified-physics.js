@@ -1,9 +1,9 @@
-// GoKarts Racing Game - PHYSICS v23 - 2024-12-16-21:30
-// FIX: Reverted to separate physics - local uses physics, remote uses interpolation
-const GAME_VERSION = 'v23-separate-physics-2024-12-16-21:30';
+// GoKarts Racing Game - DEBUG v23 - 2024-12-16-21:35
+// COMPREHENSIVE DEBUGGING: Tracking all movement and speed data
+const GAME_VERSION = 'v23-debug-movement-2024-12-16-21:35';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
-console.log('🎮 LOCAL: Uses physics system');
-console.log('🌐 REMOTE: Uses network interpolation');
+console.log('🔍 DEBUG MODE: Comprehensive movement tracking enabled');
+console.log('📊 Watch for: LARGE REMOTE MOVEMENT, SPEED ANALYSIS, SENDING UPDATE');
 console.log('🏁 SPEEDS: maxSpeed=4, acceleration=0.3, lerp=0.15');
 
 class GoKartsGame {
@@ -479,14 +479,31 @@ class GoKartsGame {
             const targetX = canvasWidth * data.x;
             const targetY = canvasHeight * data.y;
             
-            // Calculate distance to determine if we need to snap or interpolate
-            const distance = Math.sqrt((targetX - player.x) ** 2 + (targetY - player.y) ** 2);
+            // Track movement distance for debugging
+            const oldX = player.x || targetX;
+            const oldY = player.y || targetY;
+            
+            // Calculate distance moved this update
+            const distance = Math.sqrt((targetX - oldX) ** 2 + (targetY - oldY) ** 2);
+            
+            // CRITICAL DEBUG: Log large movements
+            if (distance > 5) {
+                console.log('🚨 LARGE REMOTE MOVEMENT:', {
+                    playerId: data.playerId,
+                    distance: distance.toFixed(2),
+                    from: { x: oldX.toFixed(1), y: oldY.toFixed(1) },
+                    to: { x: targetX.toFixed(1), y: targetY.toFixed(1) },
+                    reportedSpeed: data.speed,
+                    angle: data.angle?.toFixed(2)
+                });
+            }
             
             // If the distance is too large, snap to prevent teleporting appearance
             if (distance > 150) {
                 player.x = targetX;
                 player.y = targetY;
                 player.angle = data.angle;
+                console.log('📍 SNAP: Distance too large, snapping to position');
             } else {
                 // Smooth interpolation for network updates
                 const lerpFactor = 0.15; // Reduced for smoother movement
@@ -512,6 +529,17 @@ class GoKartsGame {
                 const frameDistance = Math.sqrt(dx * dx + dy * dy);
                 // Speed is distance per frame, clamped to max
                 player.speed = Math.min(frameDistance * 0.5, player.maxSpeed);
+                
+                // Log calculated vs reported speed
+                if (Math.random() < 0.05) { // 5% chance
+                    console.log('📊 SPEED ANALYSIS:', {
+                        playerId: data.playerId,
+                        calculatedSpeed: player.speed.toFixed(2),
+                        reportedSpeed: data.speed?.toFixed(2),
+                        frameDistance: frameDistance.toFixed(2),
+                        maxSpeed: player.maxSpeed
+                    });
+                }
             }
             player.prevX = targetX;
             player.prevY = targetY;
@@ -526,14 +554,26 @@ class GoKartsGame {
             const canvasWidth = this.canvas.width || 1200;
             const canvasHeight = this.canvas.height || 800;
             
-            this.socket.sendGameState({
+            const updateData = {
                 x: this.localPlayer.x / canvasWidth,
                 y: this.localPlayer.y / canvasHeight,
                 angle: this.localPlayer.angle,
                 lapCount: this.localPlayer.lapCount,
                 nextCheckpoint: this.localPlayer.nextCheckpoint,
                 speed: this.localPlayer.speed
-            });
+            };
+            
+            // Debug what we're sending
+            if (Math.random() < 0.02) { // 2% chance
+                console.log('📤 SENDING UPDATE:', {
+                    x: (updateData.x * canvasWidth).toFixed(1),
+                    y: (updateData.y * canvasHeight).toFixed(1),
+                    speed: updateData.speed.toFixed(2),
+                    angle: updateData.angle.toFixed(2)
+                });
+            }
+            
+            this.socket.sendGameState(updateData);
         }
     }
     
@@ -1093,6 +1133,13 @@ class GoKartsGame {
             if (!this.lastUpdateSent || Date.now() - this.lastUpdateSent > 50) { // 20 FPS updates
                 this.sendPlayerUpdate();
                 this.lastUpdateSent = Date.now();
+                
+                // Track update frequency
+                if (!this.updateCount) this.updateCount = 0;
+                this.updateCount++;
+                if (this.updateCount % 20 === 0) { // Every 20 updates (roughly 1 second)
+                    console.log('📈 UPDATE FREQUENCY: Sent 20 updates in ~1 second');
+                }
             }
         }
         

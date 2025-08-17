@@ -270,8 +270,12 @@
     </div>
 
     <!-- Socket.io removed - using Cloudflare Workers instead -->
-    <script src="websocket-client.js?v=23&unified=1734369000"></script>
-    <script src="config.js?v=23&unified=1734369000"></script>
-    <script src="game-v23-unified-physics.js?nocache=1734369000"></script>
+    <script>
+        // Force cache refresh with timestamp
+        const t = Date.now();
+        document.write('<script src="websocket-client.js?v=24&t=' + t + '"><\/script>');
+        document.write('<script src="config.js?v=24&t=' + t + '"><\/script>');
+        document.write('<script src="game-v24-fixed.js?t=' + t + '"><\/script>');
+    </script>
 </body>
 </html>

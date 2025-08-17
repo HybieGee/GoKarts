@@ -124,6 +124,8 @@ export class MatchmakerDO {
     this.matchStartTimeout = null; // Countdown timer
     this.matchCountdownMs = 15000; // 15 seconds to wait for more players
     this.countdownStartDelay = 2000; // 2 second delay before starting countdown
+    this.lastMatchResult = null; // Store match result for polling players
+    this.matchedPlayers = new Set(); // Track which players got their match
   }
 
   async fetch(request) {
@@ -238,6 +240,18 @@ export class MatchmakerDO {
   async handlePoll(playerId) {
     this.cleanExpiredEntries();
     
+    // Check if this player was matched in the last match
+    if (this.lastMatchResult && this.matchedPlayers.has(playerId)) {
+      console.log(`🎯 [${playerId}] POLL_MATCHED - returning stored match result`);
+      return new Response(JSON.stringify({
+        status: this.lastMatchResult.status,
+        roomId: this.lastMatchResult.roomId,
+        wsUrl: this.lastMatchResult.wsUrl
+      }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    
     const playerIndex = this.queue.findIndex(p => p.playerId === playerId);
     
     if (playerIndex === -1) {
@@ -305,13 +319,26 @@ export class MatchmakerDO {
     
     console.log(`🎯 [${roomData.roomId}] MATCH_STARTED - players: ${playersForRoom.map(p => p.playerId).join(', ')}`);
     
+    // Store match result for all players to access via polling
+    this.lastMatchResult = {
+      status: "matched",
+      roomId: roomData.roomId,
+      wsUrl: roomData.wsUrl,
+      players: playersForRoom.map(p => p.playerId),
+      createdAt: Date.now()
+    };
+    
+    // Clear matched players set and add new ones
+    this.matchedPlayers.clear();
+    playersForRoom.forEach(p => this.matchedPlayers.add(p.playerId));
+    
     // Clear the countdown since we're starting
     if (this.matchStartTimeout) {
       clearTimeout(this.matchStartTimeout);
       this.matchStartTimeout = null;
     }
     
-    // Return response for the first player (others will get it via polling)
+    // Return response (in case this was called directly from handleJoin)
     return new Response(JSON.stringify({
       status: "matched",
       roomId: roomData.roomId,

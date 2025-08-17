@@ -1,11 +1,11 @@
-// GoKarts Racing Game - Cache Bust v30 - 2024-12-16-22:45
-// LEADERBOARD UI FIXED + NO DUPLICATES: maxSpeed=3.5, acceleration=0.25
-const GAME_VERSION = 'v30-leaderboard-ui-fixed-2024-12-16-22:45';
+// GoKarts Racing Game - Cache Bust v31 - 2024-12-16-23:00
+// LEADERBOARD DUPLICATES AGGRESSIVELY FIXED: maxSpeed=3.5, acceleration=0.25
+const GAME_VERSION = 'v31-duplicates-fixed-2024-12-16-23:00';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
 console.log('📊 EXPECTED PHYSICS: maxSpeed=3.5, acceleration=0.25');
 console.log('🔧 CACHE BUSTER: Timestamp =', Date.now());
 console.log('🎯 FRAME RATE FIX: Delta time movement implemented!');
-console.log('⚡ v30 UPDATE: Fixed leaderboard UI sizing + duplicate prevention!');
+console.log('⚡ v31 CRITICAL FIX: Aggressive duplicate removal + forced scrolling!');
 
 class GoKartsGame {
     constructor() {
@@ -1676,18 +1676,34 @@ class GoKartsGame {
         // Use global leaderboard if available, otherwise local
         let leaderboardData = this.globalLeaderboard || this.leaderboard;
         
-        // Deduplicate entries by playerId (in case of backend issues)
+        // AGGRESSIVE deduplication - both by playerId AND playerName
         if (Array.isArray(leaderboardData)) {
-            const seen = new Set();
+            console.log('🔍 BEFORE deduplication:', leaderboardData.length, 'entries');
+            
+            // First dedupe by playerId
+            const seenPlayerIds = new Set();
             leaderboardData = leaderboardData.filter(entry => {
-                const key = entry.playerId || entry.name;
-                if (seen.has(key)) {
-                    console.warn('Duplicate leaderboard entry removed:', entry);
+                if (seenPlayerIds.has(entry.playerId)) {
+                    console.warn('❌ Duplicate playerId removed:', entry.playerId, entry.playerName);
                     return false;
                 }
-                seen.add(key);
+                seenPlayerIds.add(entry.playerId);
                 return true;
             });
+            
+            // Then dedupe by playerName (in case different playerIds have same name)
+            const seenNames = new Set();
+            leaderboardData = leaderboardData.filter(entry => {
+                const normalizedName = (entry.playerName || entry.name || '').toLowerCase().trim();
+                if (seenNames.has(normalizedName)) {
+                    console.warn('❌ Duplicate name removed:', normalizedName);
+                    return false;
+                }
+                seenNames.add(normalizedName);
+                return true;
+            });
+            
+            console.log('✅ AFTER deduplication:', leaderboardData.length, 'entries');
         }
         
         if (!leaderboardData || leaderboardData.length === 0) {

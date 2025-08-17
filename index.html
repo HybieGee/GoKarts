@@ -96,7 +96,7 @@
         <div id="leaderboardScreen" class="screen">
             <div class="screen-container">
                 <h2>🏆 Leaderboard</h2>
-                <div id="leaderboardList" class="leaderboard-list">
+                <div id="leaderboardList" class="leaderboard-list" style="height: 400px; overflow-y: auto; max-width: 600px; border: 2px solid rgba(78, 205, 196, 0.3); border-radius: 15px;">
                     <!-- Leaderboard entries will be populated here -->
                 </div>
                 <button id="backFromLeaderboard" class="menu-btn">BACK</button>
@@ -271,12 +271,12 @@
 
     <!-- Socket.io removed - using Cloudflare Workers instead -->
     <script>
-        // AGGRESSIVE cache busting - v30 LEADERBOARD UI FIXED
+        // AGGRESSIVE cache busting - v31 DUPLICATES FIXED
         const cacheBust = Date.now() + Math.random().toString(36);
-        console.log('🔄 CACHE BUST v30:', cacheBust);
-        document.write('<script src="websocket-client.js?v=30-ui-fixed&cb=' + cacheBust + '"><\/script>');
-        document.write('<script src="config.js?v=30-ui-fixed&cb=' + cacheBust + '"><\/script>');
-        document.write('<script src="game.js?v=30-ui-fixed&cb=' + cacheBust + '"><\/script>');
+        console.log('🔄 CACHE BUST v31:', cacheBust);
+        document.write('<script src="websocket-client.js?v=31-duplicates-fixed&cb=' + cacheBust + '"><\/script>');
+        document.write('<script src="config.js?v=31-duplicates-fixed&cb=' + cacheBust + '"><\/script>');
+        document.write('<script src="game.js?v=31-duplicates-fixed&cb=' + cacheBust + '"><\/script>');
     </script>
 </body>
 </html>

@@ -757,16 +757,33 @@ export class LeaderboardDO {
   async getLeaderboardData() {
     const leaderboard = await this.controller.storage.get('leaderboard') || {};
     
-    // Convert to array and sort by wins (descending), then by win rate
-    const sortedEntries = Object.values(leaderboard)
+    // Convert to array and aggressively deduplicate
+    const entries = Object.values(leaderboard);
+    
+    // Group by normalized name to remove duplicates
+    const uniqueEntries = new Map();
+    entries.forEach(entry => {
+      const normalizedName = (entry.playerName || '').toLowerCase().trim();
+      const existing = uniqueEntries.get(normalizedName);
+      
+      // Keep the entry with more wins, or the more recent one
+      if (!existing || entry.wins > existing.wins || 
+          (entry.wins === existing.wins && entry.lastWin > existing.lastWin)) {
+        uniqueEntries.set(normalizedName, entry);
+      }
+    });
+    
+    // Convert back to array and sort by wins (descending), then by win rate
+    const sortedEntries = Array.from(uniqueEntries.values())
       .sort((a, b) => {
         if (b.wins !== a.wins) return b.wins - a.wins;
         const aWinRate = a.totalRaces > 0 ? a.wins / a.totalRaces : 0;
         const bWinRate = b.totalRaces > 0 ? b.wins / b.totalRaces : 0;
         return bWinRate - aWinRate;
       })
-      .slice(0, 100); // Top 100 players
+      .slice(0, 50); // Top 50 players to reduce bloat
 
+    console.log(`📊 LEADERBOARD: ${entries.length} raw entries -> ${sortedEntries.length} unique entries`);
     return sortedEntries;
   }
 

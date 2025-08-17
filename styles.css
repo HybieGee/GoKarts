@@ -883,22 +883,47 @@ body {
 /* Leaderboard */
 .leaderboard-list {
     background: rgba(0, 0, 0, 0.2);
-    border-radius: 10px;
-    padding: 20px;
+    border-radius: 15px;
+    border: 2px solid rgba(78, 205, 196, 0.3);
+    padding: 15px;
     margin: 20px 0;
-    min-width: 400px;
+    min-width: 500px;
+    max-width: 600px;
+    height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Custom scrollbar */
+.leaderboard-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.leaderboard-list::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.leaderboard-list::-webkit-scrollbar-thumb {
+    background: linear-gradient(45deg, #4ecdc4, #44a08d);
+    border-radius: 4px;
+}
+
+.leaderboard-list::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(45deg, #44a08d, #4ecdc4);
 }
 
 .leaderboard-entry {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px;
-    margin: 10px 0;
+    padding: 12px 15px;
+    margin: 8px 0;
     background: rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     border-left: 4px solid #4ecdc4;
     transition: all 0.3s ease;
+    min-height: 50px;
 }
 
 .leaderboard-entry:hover {
@@ -926,8 +951,11 @@ body {
 .leaderboard-name {
     flex-grow: 1;
     text-align: left;
-    margin-left: 20px;
+    margin-left: 15px;
     font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .leaderboard-stats {

@@ -121,6 +121,8 @@ export class MatchmakerDO {
     this.roomSize = 5;
     this.minPlayersToStart = 2;
     this.ttlMs = 20000; // 20 seconds timeout
+    this.matchStartTimeout = null; // Countdown timer
+    this.matchCountdownMs = 10000; // 10 seconds to wait for more players
   }
 
   async fetch(request) {
@@ -174,23 +176,22 @@ export class MatchmakerDO {
     this.queue.push(playerEntry);
     console.log(`🏁 [${playerId}] ENQUEUE - queue size: ${this.queue.length}`);
 
-    // Check if we can form a room immediately
+    // Check if we have enough players to start countdown
     if (this.queue.length >= this.minPlayersToStart) {
-      const playersForRoom = this.queue.splice(0, this.roomSize);
-      const roomData = await this.createRoom(playersForRoom.length);
+      // If we have max players, start immediately
+      if (this.queue.length >= this.roomSize) {
+        return await this.startMatch();
+      }
       
-      console.log(`🎯 [${roomData.roomId}] MATCHED - players: ${playersForRoom.map(p => p.playerId).join(', ')}`);
-      
-      // Mark this player as matched (they'll be removed from the response)
-      const thisPlayerIndex = playersForRoom.findIndex(p => p.playerId === playerId);
-      if (thisPlayerIndex !== -1) {
-        return new Response(JSON.stringify({
-          status: "matched",
-          roomId: roomData.roomId,
-          wsUrl: roomData.wsUrl
-        }), {
-          headers: { 'Content-Type': 'application/json' }
-        });
+      // If countdown not already started, start it
+      if (!this.matchStartTimeout) {
+        console.log(`⏰ Starting ${this.matchCountdownMs/1000}s countdown with ${this.queue.length} players`);
+        this.matchStartTimeout = setTimeout(async () => {
+          if (this.queue.length >= this.minPlayersToStart) {
+            await this.startMatch();
+          }
+          this.matchStartTimeout = null;
+        }, this.matchCountdownMs);
       }
     }
 
@@ -213,6 +214,13 @@ export class MatchmakerDO {
     
     if (wasInQueue) {
       console.log(`❌ [${playerId}] DEQUEUE - cancelled by user`);
+      
+      // If we had a countdown but now don't have enough players, cancel it
+      if (this.matchStartTimeout && this.queue.length < this.minPlayersToStart) {
+        console.log(`❌ Cancelling countdown - insufficient players after cancellation`);
+        clearTimeout(this.matchStartTimeout);
+        this.matchStartTimeout = null;
+      }
     }
     
     return new Response(JSON.stringify({ status: "cancelled" }), {
@@ -240,20 +248,23 @@ export class MatchmakerDO {
       });
     }
 
-    // Check if we can form a room
+    // Check if countdown should start or match should begin
     if (this.queue.length >= this.minPlayersToStart && playerIndex < this.roomSize) {
-      const playersForRoom = this.queue.splice(0, this.roomSize);
-      const roomData = await this.createRoom(playersForRoom.length);
+      // If we have max players, start immediately
+      if (this.queue.length >= this.roomSize) {
+        const matchResult = await this.startMatch();
+        return matchResult;
+      }
       
-      // This player is in the room
-      if (playersForRoom.some(p => p.playerId === playerId)) {
-        return new Response(JSON.stringify({
-          status: "matched",
-          roomId: roomData.roomId,
-          wsUrl: roomData.wsUrl
-        }), {
-          headers: { 'Content-Type': 'application/json' }
-        });
+      // If countdown not already started, start it
+      if (!this.matchStartTimeout) {
+        console.log(`⏰ Starting ${this.matchCountdownMs/1000}s countdown with ${this.queue.length} players`);
+        this.matchStartTimeout = setTimeout(async () => {
+          if (this.queue.length >= this.minPlayersToStart) {
+            await this.startMatch();
+          }
+          this.matchStartTimeout = null;
+        }, this.matchCountdownMs);
       }
     }
 
@@ -265,6 +276,33 @@ export class MatchmakerDO {
       status: "queued",
       position,
       estWaitSec
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  async startMatch() {
+    if (this.queue.length < this.minPlayersToStart) {
+      console.log(`❌ Cannot start match - insufficient players: ${this.queue.length}/${this.minPlayersToStart}`);
+      return;
+    }
+    
+    const playersForRoom = this.queue.splice(0, Math.min(this.roomSize, this.queue.length));
+    const roomData = await this.createRoom(playersForRoom.length);
+    
+    console.log(`🎯 [${roomData.roomId}] MATCH_STARTED - players: ${playersForRoom.map(p => p.playerId).join(', ')}`);
+    
+    // Clear the countdown since we're starting
+    if (this.matchStartTimeout) {
+      clearTimeout(this.matchStartTimeout);
+      this.matchStartTimeout = null;
+    }
+    
+    // Return response for the first player (others will get it via polling)
+    return new Response(JSON.stringify({
+      status: "matched",
+      roomId: roomData.roomId,
+      wsUrl: roomData.wsUrl
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
@@ -283,6 +321,13 @@ export class MatchmakerDO {
     
     if (before !== this.queue.length) {
       console.log(`🧹 Queue cleanup: ${before} -> ${this.queue.length} (removed ${before - this.queue.length} expired)`);
+    }
+    
+    // If we had a countdown but now don't have enough players, cancel it
+    if (this.matchStartTimeout && this.queue.length < this.minPlayersToStart) {
+      console.log(`❌ Cancelling countdown - insufficient players after cleanup`);
+      clearTimeout(this.matchStartTimeout);
+      this.matchStartTimeout = null;
     }
   }
 

@@ -2250,6 +2250,15 @@ class GoKartsGame {
         const canvasWidth = canvas.width || 1200;
         const canvasHeight = canvas.height || 800;
         
+        // Debug mode indicator
+        ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
+        ctx.font = 'bold 20px Arial';
+        ctx.fillText('DEBUG MODE ON', 20, 30);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.font = '14px Arial';
+        ctx.fillText(`Map: ${this.currentMap.name}`, 20, 55);
+        ctx.fillText('1,2,3=Switch Maps | C=Clear | E=Export | D=Toggle', 20, 75);
+        
         // Draw existing checkpoints in blue
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 3;
@@ -2337,16 +2346,41 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Debug mode toggle
         if (e.code === 'KeyD' && !e.repeat) {
+            e.preventDefault();
             window.game.toggleDebugMode();
+            return;
         }
         
-        // Map switching in debug mode
-        if (window.game.debugMode) {
-            if (e.code === 'Digit1') window.game.switchMap('map1');
-            if (e.code === 'Digit2') window.game.switchMap('map2');
-            if (e.code === 'Digit3') window.game.switchMap('map3');
-            if (e.code === 'KeyC') window.game.clearNewCheckpoints();
-            if (e.code === 'KeyE') window.game.exportCheckpoints();
+        // Map switching in debug mode - only when in racing state
+        if (window.game.debugMode && window.game.gameState === 'racing') {
+            if (e.code === 'Digit1') {
+                e.preventDefault();
+                console.log('🗺️ DEBUG: Switching to Map 1');
+                window.game.switchMap('map1');
+                return;
+            }
+            if (e.code === 'Digit2') {
+                e.preventDefault();
+                console.log('🗺️ DEBUG: Switching to Map 2');
+                window.game.switchMap('map2');
+                return;
+            }
+            if (e.code === 'Digit3') {
+                e.preventDefault();
+                console.log('🗺️ DEBUG: Switching to Map 3');
+                window.game.switchMap('map3');
+                return;
+            }
+            if (e.code === 'KeyC') {
+                e.preventDefault();
+                window.game.clearNewCheckpoints();
+                return;
+            }
+            if (e.code === 'KeyE') {
+                e.preventDefault();
+                window.game.exportCheckpoints();
+                return;
+            }
         }
     });
     

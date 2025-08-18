@@ -1,7 +1,7 @@
 // Grok Karts Online Configuration
 const GAME_CONFIG = {
     // Contract Information
-    CONTRACT_ADDRESS: "TBD_PUMP_FUN_ADDRESS", // Will be updated after Pump.fun launch
+    CONTRACT_ADDRESS: "EFQ2vF3b7QHmg3CstUHYCZ83MDGT7JLxeXJvyDeNpump", // Will be updated after Pump.fun launch
     CONTRACT_NAME: "Grok Karts",
     CONTRACT_SYMBOL: "GROKKART",
     
@@ -15,7 +15,7 @@ const GAME_CONFIG = {
     // Buy Button Configuration
     BUY_BUTTON: {
         enabled: true,
-        url: "https://pump.fun/TBD_PUMP_FUN_ADDRESS", // Will be updated after launch
+        url: "https://pump.fun/coin/EFQ2vF3b7QHmg3CstUHYCZ83MDGT7JLxeXJvyDeNpump", // Will be updated after launch
         text: "🚀 Buy on Pump.fun"
     },
     

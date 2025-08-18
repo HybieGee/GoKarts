@@ -84,9 +84,16 @@ class GoKartsGame {
             }
         };
         
-        // Current map (for now, default to map1)
-        this.currentMapId = 'map1';
+        // Current map and rotation system
+        this.mapOrder = ['map1', 'map2', 'map3'];
+        this.currentMapIndex = 0;
+        this.currentMapId = this.mapOrder[this.currentMapIndex];
         this.currentMap = this.maps[this.currentMapId];
+        this.mapRotationTimer = null;
+        this.mapRotationInterval = 60000; // 1 minute for testing (30 * 60 * 1000 for production)
+        
+        // Start map rotation
+        this.startMapRotation();
         
         // Track image
         this.trackImage = new Image();
@@ -2206,6 +2213,37 @@ class GoKartsGame {
         
         // Clear new checkpoints when switching maps
         this.clearNewCheckpoints();
+    }
+
+    startMapRotation() {
+        console.log(`🔄 Starting map rotation every ${this.mapRotationInterval / 1000} seconds`);
+        console.log(`🗺️ Current map: ${this.currentMap.name} (${this.currentMapId})`);
+        
+        this.mapRotationTimer = setInterval(() => {
+            this.rotateToNextMap();
+        }, this.mapRotationInterval);
+    }
+
+    rotateToNextMap() {
+        // Move to next map in rotation
+        this.currentMapIndex = (this.currentMapIndex + 1) % this.mapOrder.length;
+        const newMapId = this.mapOrder[this.currentMapIndex];
+        
+        console.log(`🔄 AUTOMATIC MAP ROTATION: Switching from ${this.currentMap.name} to ${this.maps[newMapId].name}`);
+        
+        // Switch to the new map
+        this.switchMap(newMapId);
+        
+        // Update the map index to match
+        this.currentMapIndex = this.mapOrder.indexOf(newMapId);
+    }
+
+    stopMapRotation() {
+        if (this.mapRotationTimer) {
+            clearInterval(this.mapRotationTimer);
+            this.mapRotationTimer = null;
+            console.log('🛑 Map rotation stopped');
+        }
     }
 
     handleDebugClick(e) {

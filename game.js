@@ -25,43 +25,7 @@ class GoKartsGame {
         this.playerImages = [];
         this.loadPlayerAssets();
         
-        // Track image
-        this.trackImage = new Image();
-        this.trackImageCanvas = null;
-        this.trackImageData = null;
-        this.trackImage.onload = () => {
-            console.log('Track image loaded successfully');
-            // Create a canvas to read pixel data for collision detection
-            this.trackImageCanvas = document.createElement('canvas');
-            this.trackImageCanvas.width = this.trackImage.width;
-            this.trackImageCanvas.height = this.trackImage.height;
-            const ctx = this.trackImageCanvas.getContext('2d');
-            ctx.drawImage(this.trackImage, 0, 0);
-            this.trackImageData = ctx.getImageData(0, 0, this.trackImage.width, this.trackImage.height);
-        };
-        this.trackImage.onerror = () => {
-            console.log('Could not load track image, using fallback design');
-        };
-        // Try to load current map image
-        this.trackImage.src = this.currentMap.image;
-        
-        // Game data
-        this.players = [];
-        this.localPlayer = null;
-        this.currentLap = 1;
-        this.maxLaps = 3;
-        this.raceStartTime = 0;
-        this.raceFinished = false;
-        
-        // Sound system
-        this.sounds = this.initSounds();
-        
-        // Frame rate independent movement
-        this.lastFrameTime = 0;
-        this.targetFPS = 60;
-        this.deltaTimeMultiplier = 1;
-        
-        // Map configurations
+        // Map configurations (must be before track image loading)
         this.maps = {
             map1: {
                 image: 'Map.png',
@@ -114,6 +78,42 @@ class GoKartsGame {
         // Current map (for now, default to map1)
         this.currentMapId = 'map1';
         this.currentMap = this.maps[this.currentMapId];
+        
+        // Track image
+        this.trackImage = new Image();
+        this.trackImageCanvas = null;
+        this.trackImageData = null;
+        this.trackImage.onload = () => {
+            console.log('Track image loaded successfully');
+            // Create a canvas to read pixel data for collision detection
+            this.trackImageCanvas = document.createElement('canvas');
+            this.trackImageCanvas.width = this.trackImage.width;
+            this.trackImageCanvas.height = this.trackImage.height;
+            const ctx = this.trackImageCanvas.getContext('2d');
+            ctx.drawImage(this.trackImage, 0, 0);
+            this.trackImageData = ctx.getImageData(0, 0, this.trackImage.width, this.trackImage.height);
+        };
+        this.trackImage.onerror = () => {
+            console.log('Could not load track image, using fallback design');
+        };
+        // Try to load current map image
+        this.trackImage.src = this.currentMap.image;
+        
+        // Game data
+        this.players = [];
+        this.localPlayer = null;
+        this.currentLap = 1;
+        this.maxLaps = 3;
+        this.raceStartTime = 0;
+        this.raceFinished = false;
+        
+        // Sound system
+        this.sounds = this.initSounds();
+        
+        // Frame rate independent movement
+        this.lastFrameTime = 0;
+        this.targetFPS = 60;
+        this.deltaTimeMultiplier = 1;
         
         // Set current checkpoint system from the map
         this.checkpointLines = this.currentMap.checkpoints;

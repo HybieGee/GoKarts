@@ -61,13 +61,13 @@ class GoKartsGame {
                     { p1: { x: 0.712, y: 0.555 }, p2: { x: 0.759, y: 0.678 } }
                 ],
                 startFinishLine: { p1: { x: 0.520, y: 0.694 }, p2: { x: 0.578, y: 0.810 } },
-                startPosition: { x: 0.55, y: 0.85 }
+                startPosition: { x: 0.560, y: 0.734 }
             },
             map3: {
                 image: 'Map3.png',
                 name: 'Space Circuit',
                 checkpoints: [
-                    { p1: { x: 0.381, y: 0.880 }, p2: { x: 0.384, y: 0.769 } },
+                    { p1: { x: 0.381, y: 0.880 }, p2: { x: 0.384, y: 0.769 } },  // Old start/finish line now CP1
                     { p1: { x: 0.228, y: 0.731 }, p2: { x: 0.298, y: 0.690 } },
                     { p1: { x: 0.236, y: 0.508 }, p2: { x: 0.309, y: 0.551 } },
                     { p1: { x: 0.363, y: 0.376 }, p2: { x: 0.377, y: 0.478 } },
@@ -79,8 +79,8 @@ class GoKartsGame {
                     { p1: { x: 0.732, y: 0.541 }, p2: { x: 0.806, y: 0.560 } },
                     { p1: { x: 0.676, y: 0.646 }, p2: { x: 0.701, y: 0.753 } }
                 ],
-                startFinishLine: { p1: { x: 0.381, y: 0.880 }, p2: { x: 0.384, y: 0.769 } },
-                startPosition: { x: 0.535, y: 0.782 }
+                startFinishLine: { p1: { x: 0.508, y: 0.748 }, p2: { x: 0.546, y: 0.827 } },  // New start/finish line
+                startPosition: { x: 0.544, y: 0.771 }  // Updated start position
             }
         };
         
@@ -91,7 +91,7 @@ class GoKartsGame {
         this.currentMap = this.maps[this.currentMapId];
         this.raceMapId = this.currentMapId; // Track which map the current race is using
         this.mapRotationTimer = null;
-        this.mapRotationInterval = 60000; // 1 minute for testing (30 * 60 * 1000 for production)
+        this.mapRotationInterval = 30 * 60 * 1000; // 30 minutes for production
         
         // Start map rotation
         this.startMapRotation();
@@ -151,7 +151,7 @@ class GoKartsGame {
         this.startFinishLine = this.currentMap.startFinishLine;
         
         // Debug mode
-        // Debug properties removed for live version
+        // Debug mode removed for live version
         
         
         // Leaderboard data (stored locally for now)
@@ -2282,9 +2282,7 @@ class GoKartsGame {
         }
     }
 
-    // Debug checkpoint functions removed for live version
-
-    // Debug overlay removed for live version
+    // Debug functions removed for live version
 }
 
 // Initialize game when page loads

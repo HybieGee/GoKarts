@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoKarts - Start Positions & Checkpoints Debug Tool</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #333;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        
+        .debug-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .controls {
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .controls h2 {
+            margin: 0 0 10px 0;
+            color: #00ff00;
+        }
+        
+        .control-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .btn:hover {
+            background: #45a049;
+        }
+        
+        .btn.secondary {
+            background: #2196F3;
+        }
+        
+        .btn.danger {
+            background: #f44336;
+        }
+        
+        .info {
+            background: rgba(255,255,0,0.1);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        #gameCanvas {
+            border: 2px solid #666;
+            background: #4a7c59;
+            cursor: crosshair;
+        }
+        
+        .export-area {
+            background: rgba(0,0,0,0.8);
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 300px;
+            background: #222;
+            color: #00ff00;
+            border: 1px solid #666;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1>🏎️ GoKarts Start Positions & Checkpoints Debug Tool</h1>
+        
+        <div class="controls">
+            <h2>Map Selection</h2>
+            <div class="control-buttons">
+                <button class="btn" onclick="switchMap('map1')">Map 1 (Original)</button>
+                <button class="btn" onclick="switchMap('map2')">Map 2 (Beach)</button>
+                <button class="btn" onclick="switchMap('map3')">Map 3 (Space)</button>
+            </div>
+            
+            <h2>Tools</h2>
+            <div class="control-buttons">
+                <button class="btn secondary" onclick="clearCheckpoints()">Clear New Checkpoints</button>
+                <button class="btn secondary" onclick="exportData()">Export All Data</button>
+                <button class="btn danger" onclick="undoLast()">Undo Last</button>
+            </div>
+            
+            <div class="info">
+                <strong>Instructions:</strong><br>
+                • <strong>Shift+Click</strong> = Set start position<br>
+                • <strong>Regular Click</strong> = Add checkpoint lines (click twice for each line)<br>
+                • Green lines = existing checkpoints | Red line = start/finish | Blue dot = start position<br>
+                • Yellow lines = new checkpoints | Purple dot = temp point<br>
+                • Current Map: <span id="currentMapName">Original Circuit</span><br>
+                • Start Position: <span id="startPosDisplay">Loading...</span><br>
+                • New Checkpoints: <span id="checkpointCount">0</span>
+            </div>
+        </div>
+        
+        <canvas id="gameCanvas" width="1200" height="800"></canvas>
+        
+        <div class="export-area">
+            <h2>Export Data</h2>
+            <textarea id="exportOutput" placeholder="Start position and checkpoint data will appear here when you click Export..."></textarea>
+        </div>
+    </div>
+
+    <script>
+        // Map configurations with current data
+        const maps = {
+            map1: {
+                image: 'Map.png',
+                name: 'Original Circuit',
+                checkpoints: [
+                    { p1: { x: 0.62, y: 0.76 }, p2: { x: 0.69, y: 0.91 } },
+                    { p1: { x: 0.41, y: 0.93 }, p2: { x: 0.44, y: 0.79 } },
+                    { p1: { x: 0.15, y: 0.76 }, p2: { x: 0.24, y: 0.66 } },
+                    { p1: { x: 0.06, y: 0.37 }, p2: { x: 0.17, y: 0.39 } },
+                    { p1: { x: 0.26, y: 0.11 }, p2: { x: 0.27, y: 0.24 } },
+                    { p1: { x: 0.33, y: 0.32 }, p2: { x: 0.44, y: 0.34 } },
+                    { p1: { x: 0.43, y: 0.51 }, p2: { x: 0.34, y: 0.63 } },
+                    { p1: { x: 0.53, y: 0.48 }, p2: { x: 0.62, y: 0.57 } },
+                    { p1: { x: 0.59, y: 0.20 }, p2: { x: 0.67, y: 0.32 } },
+                    { p1: { x: 0.76, y: 0.28 }, p2: { x: 0.84, y: 0.14 } }
+                ],
+                startFinishLine: { p1: { x: 0.763, y: 0.463 }, p2: { x: 0.862, y: 0.572 } },
+                startPosition: { x: 0.80, y: 0.50 }
+            },
+            map2: {
+                image: 'Map2.png',
+                name: 'Beach Circuit',
+                checkpoints: [
+                    { p1: { x: 0.520, y: 0.694 }, p2: { x: 0.578, y: 0.810 } },
+                    { p1: { x: 0.367, y: 0.736 }, p2: { x: 0.340, y: 0.873 } },
+                    { p1: { x: 0.260, y: 0.669 }, p2: { x: 0.151, y: 0.715 } },
+                    { p1: { x: 0.192, y: 0.465 }, p2: { x: 0.280, y: 0.505 } },
+                    { p1: { x: 0.397, y: 0.321 }, p2: { x: 0.411, y: 0.409 } },
+                    { p1: { x: 0.574, y: 0.312 }, p2: { x: 0.617, y: 0.412 } },
+                    { p1: { x: 0.584, y: 0.199 }, p2: { x: 0.673, y: 0.271 } },
+                    { p1: { x: 0.799, y: 0.241 }, p2: { x: 0.741, y: 0.312 } },
+                    { p1: { x: 0.788, y: 0.450 }, p2: { x: 0.899, y: 0.455 } },
+                    { p1: { x: 0.712, y: 0.555 }, p2: { x: 0.759, y: 0.678 } }
+                ],
+                startFinishLine: { p1: { x: 0.520, y: 0.694 }, p2: { x: 0.578, y: 0.810 } },
+                startPosition: { x: 0.55, y: 0.85 }
+            },
+            map3: {
+                image: 'Map3.png',
+                name: 'Space Circuit',
+                checkpoints: [
+                    { p1: { x: 0.381, y: 0.880 }, p2: { x: 0.384, y: 0.769 } },
+                    { p1: { x: 0.228, y: 0.731 }, p2: { x: 0.298, y: 0.690 } },
+                    { p1: { x: 0.236, y: 0.508 }, p2: { x: 0.309, y: 0.551 } },
+                    { p1: { x: 0.363, y: 0.376 }, p2: { x: 0.377, y: 0.478 } },
+                    { p1: { x: 0.485, y: 0.511 }, p2: { x: 0.520, y: 0.421 } },
+                    { p1: { x: 0.613, y: 0.572 }, p2: { x: 0.592, y: 0.460 } },
+                    { p1: { x: 0.676, y: 0.427 }, p2: { x: 0.593, y: 0.424 } },
+                    { p1: { x: 0.661, y: 0.370 }, p2: { x: 0.598, y: 0.271 } },
+                    { p1: { x: 0.705, y: 0.413 }, p2: { x: 0.748, y: 0.332 } },
+                    { p1: { x: 0.732, y: 0.541 }, p2: { x: 0.806, y: 0.560 } },
+                    { p1: { x: 0.676, y: 0.646 }, p2: { x: 0.701, y: 0.753 } }
+                ],
+                startFinishLine: { p1: { x: 0.381, y: 0.880 }, p2: { x: 0.384, y: 0.769 } },
+                startPosition: { x: 0.535, y: 0.782 }
+            }
+        };
+
+        let currentMapId = 'map1';
+        let currentMap = maps[currentMapId];
+        let newCheckpoints = [];
+        let tempCheckpointPoint = null;
+        let trackImage = new Image();
+        let canvas, ctx;
+
+        function init() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            
+            // Load initial map
+            trackImage.onload = () => {
+                console.log('Track image loaded:', currentMap.name);
+                render();
+            };
+            trackImage.onerror = () => {
+                console.log('Could not load track image, using fallback');
+                render();
+            };
+            trackImage.src = currentMap.image;
+            
+            // Add click handler
+            canvas.addEventListener('click', handleCanvasClick);
+            
+            updateUI();
+        }
+
+        function switchMap(mapId) {
+            if (!maps[mapId]) return;
+            
+            console.log(`🗺️ Switching to ${maps[mapId].name}`);
+            currentMapId = mapId;
+            currentMap = maps[mapId];
+            newCheckpoints = [];
+            tempCheckpointPoint = null;
+            
+            trackImage.src = currentMap.image;
+            updateUI();
+        }
+
+        function handleCanvasClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+            
+            if (e.shiftKey) {
+                // Shift+click to set start position
+                currentMap.startPosition = { x, y };
+                console.log(`🏁 Start position set to (${x.toFixed(3)}, ${y.toFixed(3)}) for ${currentMap.name}`);
+                updateUI();
+                render();
+                return;
+            }
+            
+            if (tempCheckpointPoint) {
+                // Second click - complete the line
+                newCheckpoints.push({
+                    p1: tempCheckpointPoint,
+                    p2: { x, y }
+                });
+                console.log(`✅ Added checkpoint line: p1(${tempCheckpointPoint.x.toFixed(3)}, ${tempCheckpointPoint.y.toFixed(3)}) p2(${x.toFixed(3)}, ${y.toFixed(3)})`);
+                tempCheckpointPoint = null;
+            } else {
+                // First click - set first point
+                tempCheckpointPoint = { x, y };
+                console.log(`📍 Checkpoint point 1 set at (${x.toFixed(3)}, ${y.toFixed(3)}) - click again to complete line`);
+            }
+            
+            updateUI();
+            render();
+        }
+
+        function clearCheckpoints() {
+            newCheckpoints = [];
+            tempCheckpointPoint = null;
+            console.log('🧹 Cleared all new checkpoints');
+            updateUI();
+            render();
+        }
+
+        function undoLast() {
+            if (newCheckpoints.length > 0) {
+                const removed = newCheckpoints.pop();
+                console.log('↩️ Removed last checkpoint');
+                updateUI();
+                render();
+            } else if (tempCheckpointPoint) {
+                tempCheckpointPoint = null;
+                console.log('↩️ Cancelled checkpoint in progress');
+                render();
+            }
+        }
+
+        function exportData() {
+            let output = `// Data for ${currentMap.name}\\n`;
+            
+            // Export start position
+            output += `startPosition: { x: ${currentMap.startPosition.x.toFixed(3)}, y: ${currentMap.startPosition.y.toFixed(3)} },\\n\\n`;
+            
+            // Export start/finish line
+            output += `startFinishLine: { p1: { x: ${currentMap.startFinishLine.p1.x.toFixed(3)}, y: ${currentMap.startFinishLine.p1.y.toFixed(3)} }, p2: { x: ${currentMap.startFinishLine.p2.x.toFixed(3)}, y: ${currentMap.startFinishLine.p2.y.toFixed(3)} } },\\n\\n`;
+            
+            // Export existing checkpoints
+            output += `checkpoints: [\\n`;
+            currentMap.checkpoints.forEach((cp, i) => {
+                output += `    { p1: { x: ${cp.p1.x.toFixed(3)}, y: ${cp.p1.y.toFixed(3)} }, p2: { x: ${cp.p2.x.toFixed(3)}, y: ${cp.p2.y.toFixed(3)} } }${i < currentMap.checkpoints.length - 1 ? ',' : ''}\\n`;
+            });
+            output += `],\\n\\n`;
+            
+            // Export new checkpoints if any
+            if (newCheckpoints.length > 0) {
+                output += `// NEW CHECKPOINTS TO ADD:\\n`;
+                output += `newCheckpoints: [\\n`;
+                newCheckpoints.forEach((cp, i) => {
+                    output += `    { p1: { x: ${cp.p1.x.toFixed(3)}, y: ${cp.p1.y.toFixed(3)} }, p2: { x: ${cp.p2.x.toFixed(3)}, y: ${cp.p2.y.toFixed(3)} } }${i < newCheckpoints.length - 1 ? ',' : ''}\\n`;
+                });
+                output += `],\\n`;
+            }
+            
+            document.getElementById('exportOutput').value = output;
+            console.log('📋 Data exported to text area');
+        }
+
+        function updateUI() {
+            document.getElementById('currentMapName').textContent = currentMap.name;
+            document.getElementById('checkpointCount').textContent = newCheckpoints.length;
+            document.getElementById('startPosDisplay').textContent = `(${currentMap.startPosition.x.toFixed(3)}, ${currentMap.startPosition.y.toFixed(3)})`;
+        }
+
+        function render() {
+            // Clear canvas
+            ctx.fillStyle = '#4a7c59';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw track image
+            if (trackImage.complete && trackImage.naturalHeight !== 0) {
+                ctx.drawImage(trackImage, 0, 0, canvas.width, canvas.height);
+            } else {
+                // Fallback: draw a simple track outline
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 100;
+                ctx.beginPath();
+                ctx.ellipse(canvas.width/2, canvas.height/2, canvas.width/3, canvas.height/3, 0, 0, 2 * Math.PI);
+                ctx.stroke();
+            }
+            
+            // Draw existing checkpoints in green
+            ctx.strokeStyle = '#00ff00';
+            ctx.lineWidth = 3;
+            currentMap.checkpoints.forEach((cp, i) => {
+                ctx.beginPath();
+                ctx.moveTo(cp.p1.x * canvas.width, cp.p1.y * canvas.height);
+                ctx.lineTo(cp.p2.x * canvas.width, cp.p2.y * canvas.height);
+                ctx.stroke();
+                
+                // Add checkpoint number
+                ctx.fillStyle = '#00ff00';
+                ctx.font = '16px Arial';
+                const midX = (cp.p1.x + cp.p2.x) / 2 * canvas.width;
+                const midY = (cp.p1.y + cp.p2.y) / 2 * canvas.height;
+                ctx.fillText(`${i + 1}`, midX + 5, midY - 5);
+            });
+            
+            // Draw start/finish line in red
+            if (currentMap.startFinishLine) {
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(currentMap.startFinishLine.p1.x * canvas.width, currentMap.startFinishLine.p1.y * canvas.height);
+                ctx.lineTo(currentMap.startFinishLine.p2.x * canvas.width, currentMap.startFinishLine.p2.y * canvas.height);
+                ctx.stroke();
+                
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 16px Arial';
+                const midX = (currentMap.startFinishLine.p1.x + currentMap.startFinishLine.p2.x) / 2 * canvas.width;
+                const midY = (currentMap.startFinishLine.p1.y + currentMap.startFinishLine.p2.y) / 2 * canvas.height;
+                ctx.fillText('START/FINISH', midX + 5, midY - 5);
+            }
+            
+            // Draw start position in blue
+            ctx.fillStyle = '#0088ff';
+            ctx.beginPath();
+            ctx.arc(currentMap.startPosition.x * canvas.width, currentMap.startPosition.y * canvas.height, 12, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#0088ff';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillText('START', currentMap.startPosition.x * canvas.width + 15, currentMap.startPosition.y * canvas.height - 10);
+            
+            // Draw new checkpoints in yellow
+            ctx.strokeStyle = '#ffff00';
+            ctx.lineWidth = 3;
+            newCheckpoints.forEach((cp, i) => {
+                ctx.beginPath();
+                ctx.moveTo(cp.p1.x * canvas.width, cp.p1.y * canvas.height);
+                ctx.lineTo(cp.p2.x * canvas.width, cp.p2.y * canvas.height);
+                ctx.stroke();
+                
+                ctx.fillStyle = '#ffff00';
+                ctx.font = '16px Arial';
+                const midX = (cp.p1.x + cp.p2.x) / 2 * canvas.width;
+                const midY = (cp.p1.y + cp.p2.y) / 2 * canvas.height;
+                ctx.fillText(`NEW${i + 1}`, midX + 5, midY - 5);
+            });
+            
+            // Draw temp checkpoint point if setting one
+            if (tempCheckpointPoint) {
+                ctx.fillStyle = '#ff00ff';
+                ctx.beginPath();
+                ctx.arc(tempCheckpointPoint.x * canvas.width, tempCheckpointPoint.y * canvas.height, 8, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.fillStyle = '#ff00ff';
+                ctx.font = '14px Arial';
+                ctx.fillText('CLICK TO COMPLETE', tempCheckpointPoint.x * canvas.width + 15, tempCheckpointPoint.y * canvas.height - 10);
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

@@ -42,8 +42,8 @@ class GoKartsGame {
         this.trackImage.onerror = () => {
             console.log('Could not load track image, using fallback design');
         };
-        // Try to load custom track image
-        this.trackImage.src = 'Map.png';
+        // Try to load current map image
+        this.trackImage.src = this.currentMap.image;
         
         // Game data
         this.players = [];
@@ -61,22 +61,67 @@ class GoKartsGame {
         this.targetFPS = 60;
         this.deltaTimeMultiplier = 1;
         
-        // Checkpoint system
-        this.checkpointLines = [
-            { p1: { x: 0.62, y: 0.76 }, p2: { x: 0.69, y: 0.91 } },  // CP1
-            { p1: { x: 0.41, y: 0.93 }, p2: { x: 0.44, y: 0.79 } },  // CP2
-            { p1: { x: 0.15, y: 0.76 }, p2: { x: 0.24, y: 0.66 } },  // CP3
-            { p1: { x: 0.06, y: 0.37 }, p2: { x: 0.17, y: 0.39 } },  // CP4
-            { p1: { x: 0.26, y: 0.11 }, p2: { x: 0.27, y: 0.24 } },  // CP5
-            { p1: { x: 0.33, y: 0.32 }, p2: { x: 0.44, y: 0.34 } },  // CP6
-            { p1: { x: 0.43, y: 0.51 }, p2: { x: 0.34, y: 0.63 } },  // CP7
-            { p1: { x: 0.53, y: 0.48 }, p2: { x: 0.62, y: 0.57 } },  // CP8
-            { p1: { x: 0.59, y: 0.20 }, p2: { x: 0.67, y: 0.32 } },  // CP9
-            { p1: { x: 0.76, y: 0.28 }, p2: { x: 0.84, y: 0.14 } }   // CP10
-        ];
+        // Map configurations
+        this.maps = {
+            map1: {
+                image: 'Map.png',
+                name: 'Original Circuit',
+                checkpoints: [
+                    { p1: { x: 0.62, y: 0.76 }, p2: { x: 0.69, y: 0.91 } },  // CP1
+                    { p1: { x: 0.41, y: 0.93 }, p2: { x: 0.44, y: 0.79 } },  // CP2
+                    { p1: { x: 0.15, y: 0.76 }, p2: { x: 0.24, y: 0.66 } },  // CP3
+                    { p1: { x: 0.06, y: 0.37 }, p2: { x: 0.17, y: 0.39 } },  // CP4
+                    { p1: { x: 0.26, y: 0.11 }, p2: { x: 0.27, y: 0.24 } },  // CP5
+                    { p1: { x: 0.33, y: 0.32 }, p2: { x: 0.44, y: 0.34 } },  // CP6
+                    { p1: { x: 0.43, y: 0.51 }, p2: { x: 0.34, y: 0.63 } },  // CP7
+                    { p1: { x: 0.53, y: 0.48 }, p2: { x: 0.62, y: 0.57 } },  // CP8
+                    { p1: { x: 0.59, y: 0.20 }, p2: { x: 0.67, y: 0.32 } },  // CP9
+                    { p1: { x: 0.76, y: 0.28 }, p2: { x: 0.84, y: 0.14 } }   // CP10
+                ],
+                startFinishLine: { p1: { x: 0.763, y: 0.463 }, p2: { x: 0.862, y: 0.572 } },
+                startPosition: { x: 0.80, y: 0.50 }
+            },
+            map2: {
+                image: 'Map2.png',
+                name: 'New Track 2',
+                checkpoints: [
+                    // Placeholder checkpoints - you'll configure these
+                    { p1: { x: 0.5, y: 0.1 }, p2: { x: 0.6, y: 0.1 } },
+                    { p1: { x: 0.8, y: 0.3 }, p2: { x: 0.8, y: 0.4 } },
+                    { p1: { x: 0.7, y: 0.7 }, p2: { x: 0.6, y: 0.7 } },
+                    { p1: { x: 0.3, y: 0.8 }, p2: { x: 0.3, y: 0.7 } },
+                    { p1: { x: 0.1, y: 0.5 }, p2: { x: 0.2, y: 0.5 } }
+                ],
+                startFinishLine: { p1: { x: 0.4, y: 0.5 }, p2: { x: 0.6, y: 0.5 } },
+                startPosition: { x: 0.5, y: 0.6 }
+            },
+            map3: {
+                image: 'Map3.png',
+                name: 'New Track 3',
+                checkpoints: [
+                    // Placeholder checkpoints - you'll configure these
+                    { p1: { x: 0.5, y: 0.1 }, p2: { x: 0.6, y: 0.1 } },
+                    { p1: { x: 0.8, y: 0.3 }, p2: { x: 0.8, y: 0.4 } },
+                    { p1: { x: 0.7, y: 0.7 }, p2: { x: 0.6, y: 0.7 } },
+                    { p1: { x: 0.3, y: 0.8 }, p2: { x: 0.3, y: 0.7 } },
+                    { p1: { x: 0.1, y: 0.5 }, p2: { x: 0.2, y: 0.5 } }
+                ],
+                startFinishLine: { p1: { x: 0.4, y: 0.5 }, p2: { x: 0.6, y: 0.5 } },
+                startPosition: { x: 0.5, y: 0.6 }
+            }
+        };
         
-        // Start/finish line (proper line across track for lap detection)
-        this.startFinishLine = { p1: { x: 0.763, y: 0.463 }, p2: { x: 0.862, y: 0.572 } };
+        // Current map (for now, default to map1)
+        this.currentMapId = 'map1';
+        this.currentMap = this.maps[this.currentMapId];
+        
+        // Set current checkpoint system from the map
+        this.checkpointLines = this.currentMap.checkpoints;
+        this.startFinishLine = this.currentMap.startFinishLine;
+        
+        // Debug mode
+        this.debugMode = false;
+        this.newCheckpoints = [];  // For building new checkpoint arrays
         
         
         // Leaderboard data (stored locally for now)
@@ -2120,9 +2165,198 @@ class GoKartsGame {
             }
         }
     }
+
+    // Debug mode methods
+    toggleDebugMode() {
+        this.debugMode = !this.debugMode;
+        console.log(`🔧 Debug mode: ${this.debugMode ? 'ON' : 'OFF'}`);
+        if (this.debugMode) {
+            console.log('🗺️ Debug Controls:');
+            console.log('1, 2, 3 = Switch maps');
+            console.log('Click = Add checkpoint line');
+            console.log('C = Clear new checkpoints');
+            console.log('E = Export checkpoints to console');
+            console.log('D = Toggle debug mode');
+        }
+    }
+
+    switchMap(mapId) {
+        if (!this.maps[mapId]) return;
+        
+        console.log(`🗺️ Switching to ${this.maps[mapId].name}`);
+        this.currentMapId = mapId;
+        this.currentMap = this.maps[mapId];
+        this.checkpointLines = this.currentMap.checkpoints;
+        this.startFinishLine = this.currentMap.startFinishLine;
+        
+        // Reload track image
+        this.trackImage.src = this.currentMap.image;
+        
+        // Clear any race in progress
+        if (this.gameState !== 'menu') {
+            this.showScreen('mainMenu');
+            this.gameState = 'menu';
+        }
+    }
+
+    handleDebugClick(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width;
+        const y = (e.clientY - rect.top) / rect.height;
+        
+        // Add checkpoint line (you'll click twice to create a line)
+        if (this.tempCheckpointPoint) {
+            // Second click - complete the line
+            this.newCheckpoints.push({
+                p1: this.tempCheckpointPoint,
+                p2: { x, y }
+            });
+            this.tempCheckpointPoint = null;
+            console.log(`✅ Added checkpoint line: p1(${this.newCheckpoints[this.newCheckpoints.length-1].p1.x.toFixed(3)}, ${this.newCheckpoints[this.newCheckpoints.length-1].p1.y.toFixed(3)}) p2(${x.toFixed(3)}, ${y.toFixed(3)})`);
+        } else {
+            // First click - start the line
+            this.tempCheckpointPoint = { x, y };
+            console.log(`📍 Checkpoint point 1 set at (${x.toFixed(3)}, ${y.toFixed(3)}) - click again to complete line`);
+        }
+    }
+
+    clearNewCheckpoints() {
+        this.newCheckpoints = [];
+        this.tempCheckpointPoint = null;
+        console.log('🗑️ Cleared new checkpoints');
+    }
+
+    exportCheckpoints() {
+        if (this.newCheckpoints.length === 0) {
+            console.log('❌ No checkpoints to export. Click on the track to create checkpoint lines.');
+            return;
+        }
+        
+        console.log('📋 Export checkpoints for', this.currentMap.name + ':');
+        console.log('checkpoints: [');
+        this.newCheckpoints.forEach((cp, i) => {
+            console.log(`    { p1: { x: ${cp.p1.x.toFixed(3)}, y: ${cp.p1.y.toFixed(3)} }, p2: { x: ${cp.p2.x.toFixed(3)}, y: ${cp.p2.y.toFixed(3)} } }${i < this.newCheckpoints.length - 1 ? ',' : ''}`);
+        });
+        console.log('],');
+    }
+
+    drawDebugOverlay() {
+        if (!this.debugMode) return;
+        
+        const canvas = document.getElementById('gameCanvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        const canvasWidth = canvas.width || 1200;
+        const canvasHeight = canvas.height || 800;
+        
+        // Draw existing checkpoints in blue
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 3;
+        this.checkpointLines.forEach((cp, i) => {
+            ctx.beginPath();
+            ctx.moveTo(cp.p1.x * canvasWidth, cp.p1.y * canvasHeight);
+            ctx.lineTo(cp.p2.x * canvasWidth, cp.p2.y * canvasHeight);
+            ctx.stroke();
+            
+            // Add checkpoint number
+            ctx.fillStyle = '#00ff00';
+            ctx.font = '16px Arial';
+            const midX = (cp.p1.x + cp.p2.x) / 2 * canvasWidth;
+            const midY = (cp.p1.y + cp.p2.y) / 2 * canvasHeight;
+            ctx.fillText(`CP${i + 1}`, midX + 5, midY - 5);
+        });
+        
+        // Draw start/finish line in red
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(this.startFinishLine.p1.x * canvasWidth, this.startFinishLine.p1.y * canvasHeight);
+        ctx.lineTo(this.startFinishLine.p2.x * canvasWidth, this.startFinishLine.p2.y * canvasHeight);
+        ctx.stroke();
+        
+        ctx.fillStyle = '#ff0000';
+        ctx.font = '18px Arial';
+        const sfMidX = (this.startFinishLine.p1.x + this.startFinishLine.p2.x) / 2 * canvasWidth;
+        const sfMidY = (this.startFinishLine.p1.y + this.startFinishLine.p2.y) / 2 * canvasHeight;
+        ctx.fillText('START/FINISH', sfMidX + 5, sfMidY - 5);
+        
+        // Draw new checkpoints being created in yellow
+        ctx.strokeStyle = '#ffff00';
+        ctx.lineWidth = 3;
+        this.newCheckpoints.forEach((cp, i) => {
+            ctx.beginPath();
+            ctx.moveTo(cp.p1.x * canvasWidth, cp.p1.y * canvasHeight);
+            ctx.lineTo(cp.p2.x * canvasWidth, cp.p2.y * canvasHeight);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#ffff00';
+            ctx.font = '16px Arial';
+            const midX = (cp.p1.x + cp.p2.x) / 2 * canvasWidth;
+            const midY = (cp.p1.y + cp.p2.y) / 2 * canvasHeight;
+            ctx.fillText(`NEW${i + 1}`, midX + 5, midY - 5);
+        });
+        
+        // Draw temp checkpoint point
+        if (this.tempCheckpointPoint) {
+            ctx.fillStyle = '#ff00ff';
+            ctx.beginPath();
+            ctx.arc(this.tempCheckpointPoint.x * canvasWidth, this.tempCheckpointPoint.y * canvasHeight, 8, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        
+        // Draw debug info
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '14px Arial';
+        ctx.fillRect(10, 10, 300, 120);
+        ctx.fillStyle = '#000000';
+        ctx.fillText(`DEBUG MODE - ${this.currentMap.name}`, 15, 30);
+        ctx.fillText('1,2,3 = Switch maps', 15, 50);
+        ctx.fillText('Click = Add checkpoint line', 15, 70);
+        ctx.fillText('C = Clear | E = Export | D = Toggle', 15, 90);
+        ctx.fillText(`New checkpoints: ${this.newCheckpoints.length}`, 15, 110);
+    }
 }
 
 // Initialize game when page loads
 document.addEventListener('DOMContentLoaded', () => {
     window.game = new GoKartsGame();
+    
+    // Start debug rendering loop
+    function debugRenderLoop() {
+        if (window.game && window.game.debugMode) {
+            window.game.drawDebugOverlay();
+        }
+        requestAnimationFrame(debugRenderLoop);
+    }
+    debugRenderLoop();
+    
+    // Add debug input handling
+    document.addEventListener('keydown', (e) => {
+        if (!window.game) return;
+        
+        // Debug mode toggle
+        if (e.code === 'KeyD' && !e.repeat) {
+            window.game.toggleDebugMode();
+        }
+        
+        // Map switching in debug mode
+        if (window.game.debugMode) {
+            if (e.code === 'Digit1') window.game.switchMap('map1');
+            if (e.code === 'Digit2') window.game.switchMap('map2');
+            if (e.code === 'Digit3') window.game.switchMap('map3');
+            if (e.code === 'KeyC') window.game.clearNewCheckpoints();
+            if (e.code === 'KeyE') window.game.exportCheckpoints();
+        }
+    });
+    
+    // Add debug click handling to canvas
+    const canvas = document.getElementById('gameCanvas');
+    if (canvas) {
+        canvas.addEventListener('click', (e) => {
+            if (window.game && window.game.debugMode) {
+                window.game.handleDebugClick(e);
+            }
+        });
+    }
 });

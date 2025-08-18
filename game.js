@@ -2,7 +2,7 @@
 // LEADERBOARD DUPLICATES AGGRESSIVELY FIXED: maxSpeed=3.5, acceleration=0.25
 const GAME_VERSION = 'v31-duplicates-fixed-2024-12-16-23:00';
 console.log('🚀 GAME.JS LOADED - VERSION:', GAME_VERSION);
-console.log('📊 EXPECTED PHYSICS: maxSpeed=3.5, acceleration=0.25');
+// Physics info removed for cleaner console
 console.log('🔧 CACHE BUSTER: Timestamp =', Date.now());
 console.log('🎯 FRAME RATE FIX: Delta time movement implemented!');
 console.log('⚡ v31 CRITICAL FIX: Aggressive duplicate removal + forced scrolling!');
@@ -95,6 +95,20 @@ class GoKartsGame {
         // Start map rotation
         this.startMapRotation();
         
+        // Debug: Check timer status after 5 seconds
+        setTimeout(() => {
+            console.log(`🔍 DEBUG CHECK: Map rotation timer status after 5 seconds`);
+            console.log(`Timer ID: ${this.mapRotationTimer}`);
+            console.log(`Timer active: ${this.mapRotationTimer !== null}`);
+            console.log(`Current map: ${this.currentMap.name}`);
+        }, 5000);
+        
+        // Debug: Add a test timer to verify setInterval works
+        console.log(`🧪 Setting up test timer to fire every 10 seconds for verification`);
+        setInterval(() => {
+            console.log(`🧪 TEST TIMER FIRED: Current time is ${new Date().toLocaleTimeString()}`);
+        }, 10000);
+        
         // Track image
         this.trackImage = new Image();
         this.trackImageCanvas = null;
@@ -136,8 +150,7 @@ class GoKartsGame {
         this.startFinishLine = this.currentMap.startFinishLine;
         
         // Debug mode
-        this.debugMode = false;
-        this.newCheckpoints = [];  // For building new checkpoint arrays
+        // Debug properties removed for live version
         
         
         // Leaderboard data (stored locally for now)
@@ -511,7 +524,7 @@ class GoKartsGame {
         // PHYSICS VERIFICATION SUMMARY
         console.log('📋 PHYSICS VERIFICATION SUMMARY:');
         this.players.forEach((player, index) => {
-            console.log(`Player ${index + 1}: ${player.isLocal ? 'LOCAL' : 'REMOTE'} | maxSpeed: ${player.maxSpeed} | acceleration: ${player.acceleration} | id: ${player.id}`);
+            // Player physics debug removed
         });
         
         // Start countdown sequence
@@ -584,7 +597,7 @@ class GoKartsGame {
             
             // Debug log movement - every 1% chance to avoid spam
             if (Math.random() < 0.01) {
-                console.log('🌐 REMOTE PLAYER MOVE - id:', data.playerId, 'distance:', distance.toFixed(2), 'maxSpeed:', player.maxSpeed, 'acceleration:', player.acceleration);
+                // Remote player debug removed
             }
             
             // If the distance is too large, snap to prevent teleporting appearance
@@ -1276,7 +1289,7 @@ class GoKartsGame {
                 accelerating = true;
                 // Debug log every 100 frames
                 if (Math.random() < 0.01) {
-                    console.log('🚗 LOCAL ACCELERATING - speed:', player.speed.toFixed(2), 'deltaMultiplier:', this.deltaTimeMultiplier.toFixed(3), 'id:', player.id);
+                    // Local acceleration debug removed
                 }
             } else if (this.keys['s'] || this.keys['ArrowDown']) {
                 player.speed -= player.deceleration * this.deltaTimeMultiplier;
@@ -1366,7 +1379,7 @@ class GoKartsGame {
         
         // Move forward - FRAME RATE INDEPENDENT WITH SPEED LIMIT
         player.speed = Math.min(player.speed + player.acceleration * this.deltaTimeMultiplier, player.maxSpeed);
-        console.log('🤖 AI SPEED LIMITED:', player.speed.toFixed(2), 'maxSpeed:', player.maxSpeed);
+        // AI speed debug removed
     }
     
     updateCheckpoints() {
@@ -1650,10 +1663,7 @@ class GoKartsGame {
             this.drawPlayer(player);
         });
         
-        // Draw debug overlay if enabled
-        if (this.debugMode) {
-            this.drawDebugOverlay();
-        }
+        // Debug overlay removed for live version
         
         // Draw countdown if in countdown state
         if (this.gameState === 'countdown' || this.countdownText) {
@@ -2186,18 +2196,7 @@ class GoKartsGame {
     }
 
     // Debug mode methods
-    toggleDebugMode() {
-        this.debugMode = !this.debugMode;
-        console.log(`🔧 Debug mode: ${this.debugMode ? 'ON' : 'OFF'}`);
-        if (this.debugMode) {
-            console.log('🗺️ Debug Controls:');
-            console.log('1, 2, 3 = Switch maps');
-            console.log('Click = Add checkpoint line');
-            console.log('C = Clear new checkpoints');
-            console.log('E = Export checkpoints to console');
-            console.log('M = Toggle debug mode');
-        }
-    }
+    // Debug mode removed for live version
 
     switchMap(mapId) {
         if (!this.maps[mapId]) return;
@@ -2211,17 +2210,24 @@ class GoKartsGame {
         // Reload track image
         this.trackImage.src = this.currentMap.image;
         
-        // Clear new checkpoints when switching maps
-        this.clearNewCheckpoints();
+        // Debug checkpoint clearing removed for live version
     }
 
     startMapRotation() {
         console.log(`🔄 Starting map rotation every ${this.mapRotationInterval / 1000} seconds`);
         console.log(`🗺️ Current map: ${this.currentMap.name} (${this.currentMapId})`);
         
-        this.mapRotationTimer = setInterval(() => {
-            this.rotateToNextMap();
-        }, this.mapRotationInterval);
+        try {
+            this.mapRotationTimer = setInterval(() => {
+                console.log(`⚡ MAP ROTATION TIMER FIRED! About to rotate from ${this.currentMap.name}`);
+                this.rotateToNextMap();
+            }, this.mapRotationInterval);
+            
+            console.log(`✅ Map rotation timer set successfully! Timer ID: ${this.mapRotationTimer}`);
+            console.log(`⏰ Next rotation in ${this.mapRotationInterval / 1000} seconds`);
+        } catch (error) {
+            console.error(`❌ Failed to set map rotation timer:`, error);
+        }
     }
 
     rotateToNextMap() {
@@ -2246,198 +2252,16 @@ class GoKartsGame {
         }
     }
 
-    handleDebugClick(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left) / rect.width;
-        const y = (e.clientY - rect.top) / rect.height;
-        
-        // Add checkpoint line (you'll click twice to create a line)
-        if (this.tempCheckpointPoint) {
-            // Second click - complete the line
-            this.newCheckpoints.push({
-                p1: this.tempCheckpointPoint,
-                p2: { x, y }
-            });
-            this.tempCheckpointPoint = null;
-            console.log(`✅ Added checkpoint line: p1(${this.newCheckpoints[this.newCheckpoints.length-1].p1.x.toFixed(3)}, ${this.newCheckpoints[this.newCheckpoints.length-1].p1.y.toFixed(3)}) p2(${x.toFixed(3)}, ${y.toFixed(3)})`);
-        } else {
-            // First click - start the line
-            this.tempCheckpointPoint = { x, y };
-            console.log(`📍 Checkpoint point 1 set at (${x.toFixed(3)}, ${y.toFixed(3)}) - click again to complete line`);
-        }
-    }
+    // Debug checkpoint functions removed for live version
 
-    clearNewCheckpoints() {
-        this.newCheckpoints = [];
-        this.tempCheckpointPoint = null;
-        console.log('🗑️ Cleared new checkpoints');
-    }
-
-    exportCheckpoints() {
-        if (this.newCheckpoints.length === 0) {
-            console.log('❌ No checkpoints to export. Click on the track to create checkpoint lines.');
-            return;
-        }
-        
-        console.log('📋 Export checkpoints for', this.currentMap.name + ':');
-        console.log('checkpoints: [');
-        this.newCheckpoints.forEach((cp, i) => {
-            console.log(`    { p1: { x: ${cp.p1.x.toFixed(3)}, y: ${cp.p1.y.toFixed(3)} }, p2: { x: ${cp.p2.x.toFixed(3)}, y: ${cp.p2.y.toFixed(3)} } }${i < this.newCheckpoints.length - 1 ? ',' : ''}`);
-        });
-        console.log('],');
-    }
-
-    drawDebugOverlay() {
-        if (!this.debugMode) return;
-        
-        const canvas = document.getElementById('gameCanvas');
-        if (!canvas) return;
-        
-        const ctx = canvas.getContext('2d');
-        const canvasWidth = canvas.width || 1200;
-        const canvasHeight = canvas.height || 800;
-        
-        // Debug mode indicator
-        ctx.fillStyle = 'rgba(255, 255, 0, 0.8)';
-        ctx.font = 'bold 20px Arial';
-        ctx.fillText('DEBUG MODE ON', 20, 30);
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.font = '14px Arial';
-        ctx.fillText(`Map: ${this.currentMap.name}`, 20, 55);
-        ctx.fillText('1,2,3=Switch Maps | C=Clear | E=Export | M=Toggle', 20, 75);
-        
-        // Draw existing checkpoints in blue
-        ctx.strokeStyle = '#00ff00';
-        ctx.lineWidth = 3;
-        this.checkpointLines.forEach((cp, i) => {
-            ctx.beginPath();
-            ctx.moveTo(cp.p1.x * canvasWidth, cp.p1.y * canvasHeight);
-            ctx.lineTo(cp.p2.x * canvasWidth, cp.p2.y * canvasHeight);
-            ctx.stroke();
-            
-            // Add checkpoint number
-            ctx.fillStyle = '#00ff00';
-            ctx.font = '16px Arial';
-            const midX = (cp.p1.x + cp.p2.x) / 2 * canvasWidth;
-            const midY = (cp.p1.y + cp.p2.y) / 2 * canvasHeight;
-            ctx.fillText(`CP${i + 1}`, midX + 5, midY - 5);
-        });
-        
-        // Draw start/finish line in red
-        ctx.strokeStyle = '#ff0000';
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(this.startFinishLine.p1.x * canvasWidth, this.startFinishLine.p1.y * canvasHeight);
-        ctx.lineTo(this.startFinishLine.p2.x * canvasWidth, this.startFinishLine.p2.y * canvasHeight);
-        ctx.stroke();
-        
-        ctx.fillStyle = '#ff0000';
-        ctx.font = '18px Arial';
-        const sfMidX = (this.startFinishLine.p1.x + this.startFinishLine.p2.x) / 2 * canvasWidth;
-        const sfMidY = (this.startFinishLine.p1.y + this.startFinishLine.p2.y) / 2 * canvasHeight;
-        ctx.fillText('START/FINISH', sfMidX + 5, sfMidY - 5);
-        
-        // Draw new checkpoints being created in yellow
-        ctx.strokeStyle = '#ffff00';
-        ctx.lineWidth = 3;
-        this.newCheckpoints.forEach((cp, i) => {
-            ctx.beginPath();
-            ctx.moveTo(cp.p1.x * canvasWidth, cp.p1.y * canvasHeight);
-            ctx.lineTo(cp.p2.x * canvasWidth, cp.p2.y * canvasHeight);
-            ctx.stroke();
-            
-            ctx.fillStyle = '#ffff00';
-            ctx.font = '16px Arial';
-            const midX = (cp.p1.x + cp.p2.x) / 2 * canvasWidth;
-            const midY = (cp.p1.y + cp.p2.y) / 2 * canvasHeight;
-            ctx.fillText(`NEW${i + 1}`, midX + 5, midY - 5);
-        });
-        
-        // Draw temp checkpoint point
-        if (this.tempCheckpointPoint) {
-            ctx.fillStyle = '#ff00ff';
-            ctx.beginPath();
-            ctx.arc(this.tempCheckpointPoint.x * canvasWidth, this.tempCheckpointPoint.y * canvasHeight, 8, 0, 2 * Math.PI);
-            ctx.fill();
-        }
-        
-        // Draw debug info
-        ctx.fillStyle = '#ffffff';
-        ctx.font = '14px Arial';
-        ctx.fillRect(10, 10, 300, 120);
-        ctx.fillStyle = '#000000';
-        ctx.fillText(`DEBUG MODE - ${this.currentMap.name}`, 15, 30);
-        ctx.fillText('1,2,3 = Switch maps', 15, 50);
-        ctx.fillText('Click = Add checkpoint line', 15, 70);
-        ctx.fillText('C = Clear | E = Export | D = Toggle', 15, 90);
-        ctx.fillText(`New checkpoints: ${this.newCheckpoints.length}`, 15, 110);
-    }
+    // Debug overlay removed for live version
 }
 
 // Initialize game when page loads
 document.addEventListener('DOMContentLoaded', () => {
     window.game = new GoKartsGame();
     
-    // Start debug rendering loop
-    function debugRenderLoop() {
-        if (window.game && window.game.debugMode) {
-            window.game.drawDebugOverlay();
-        }
-        requestAnimationFrame(debugRenderLoop);
-    }
-    debugRenderLoop();
+    // Debug rendering loop removed for live version
     
-    // Add debug input handling
-    document.addEventListener('keydown', (e) => {
-        if (!window.game) return;
-        
-        // Debug mode toggle
-        if (e.code === 'KeyM' && !e.repeat) {
-            e.preventDefault();
-            window.game.toggleDebugMode();
-            return;
-        }
-        
-        // Map switching in debug mode - only when in racing state
-        if (window.game.debugMode && window.game.gameState === 'racing') {
-            if (e.code === 'Digit1') {
-                e.preventDefault();
-                console.log('🗺️ DEBUG: Switching to Map 1');
-                window.game.switchMap('map1');
-                return;
-            }
-            if (e.code === 'Digit2') {
-                e.preventDefault();
-                console.log('🗺️ DEBUG: Switching to Map 2');
-                window.game.switchMap('map2');
-                return;
-            }
-            if (e.code === 'Digit3') {
-                e.preventDefault();
-                console.log('🗺️ DEBUG: Switching to Map 3');
-                window.game.switchMap('map3');
-                return;
-            }
-            if (e.code === 'KeyC') {
-                e.preventDefault();
-                window.game.clearNewCheckpoints();
-                return;
-            }
-            if (e.code === 'KeyE') {
-                e.preventDefault();
-                window.game.exportCheckpoints();
-                return;
-            }
-        }
-    });
-    
-    // Add debug click handling to canvas
-    const canvas = document.getElementById('gameCanvas');
-    if (canvas) {
-        canvas.addEventListener('click', (e) => {
-            if (window.game && window.game.debugMode) {
-                window.game.handleDebugClick(e);
-            }
-        });
-    }
+    // Debug input handling removed for live version
 });

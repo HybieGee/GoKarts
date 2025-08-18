@@ -614,9 +614,42 @@ class GoKartsGame {
                 const playerName = player.isBot ? `🤖 ${player.name}` : player.name;
                 const playerIndicator = player.id === this.playerId ? '(You)' : (player.isBot ? '(Bot)' : '');
                 
+                // Try to get timing data from local player or server data
+                let timingInfo = playerIndicator;
+                const localPlayerData = this.players?.find(p => p.id === player.id || p.id === player.playerId);
+                
+                if (localPlayerData && (localPlayerData.totalRaceTime || localPlayerData.bestLapTime)) {
+                    timingInfo = '';
+                    if (localPlayerData.totalRaceTime) {
+                        const totalSeconds = (localPlayerData.totalRaceTime / 1000).toFixed(2);
+                        timingInfo += `${totalSeconds}s`;
+                    }
+                    if (localPlayerData.bestLapTime) {
+                        const bestSeconds = (localPlayerData.bestLapTime / 1000).toFixed(2);
+                        timingInfo += timingInfo ? ` | Best: ${bestSeconds}s` : `Best: ${bestSeconds}s`;
+                    }
+                    if (playerIndicator) {
+                        timingInfo += ` ${playerIndicator}`;
+                    }
+                } else if (player.totalRaceTime || player.bestLapTime) {
+                    // Use server-provided timing data
+                    timingInfo = '';
+                    if (player.totalRaceTime) {
+                        const totalSeconds = (player.totalRaceTime / 1000).toFixed(2);
+                        timingInfo += `${totalSeconds}s`;
+                    }
+                    if (player.bestLapTime) {
+                        const bestSeconds = (player.bestLapTime / 1000).toFixed(2);
+                        timingInfo += timingInfo ? ` | Best: ${bestSeconds}s` : `Best: ${bestSeconds}s`;
+                    }
+                    if (playerIndicator) {
+                        timingInfo += ` ${playerIndicator}`;
+                    }
+                }
+                
                 entry.innerHTML = `
                     <span>${player.position}. ${playerName}</span>
-                    <span>${playerIndicator}</span>
+                    <span>${timingInfo}</span>
                 `;
                 resultsList.appendChild(entry);
             });
@@ -1439,7 +1472,9 @@ class GoKartsGame {
                 playerName: winner.isLocal ? this.playerName : winner.name,
                 raceTime: Date.now() - this.raceStartTime,
                 finalTime: Date.now() - this.raceStartTime,
-                lapCount: winner.lapCount
+                lapCount: winner.lapCount,
+                bestLapTime: winner.bestLapTime,
+                totalRaceTime: winner.totalRaceTime
             });
         } else if (!this.isMultiplayer) {
             // Update local leaderboard

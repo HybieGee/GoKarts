@@ -595,7 +595,10 @@ export class RoomDO {
           playerId: message.playerId,
           playerName: message.playerName,
           position: this.raceResults.length + 1,
-          finishTime: Date.now()
+          finishTime: Date.now(),
+          bestLapTime: message.bestLapTime,
+          totalRaceTime: message.totalRaceTime,
+          lapCount: message.lapCount
         });
       }
       
@@ -628,7 +631,10 @@ export class RoomDO {
           name: result.playerName,
           playerName: result.playerName,
           position: result.position,
-          finished: true
+          finished: true,
+          bestLapTime: result.bestLapTime,
+          totalRaceTime: result.totalRaceTime,
+          lapCount: result.lapCount
         });
       });
       

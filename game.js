@@ -2179,7 +2179,7 @@ class GoKartsGame {
             console.log('Click = Add checkpoint line');
             console.log('C = Clear new checkpoints');
             console.log('E = Export checkpoints to console');
-            console.log('D = Toggle debug mode');
+            console.log('M = Toggle debug mode');
         }
     }
 
@@ -2257,7 +2257,7 @@ class GoKartsGame {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.font = '14px Arial';
         ctx.fillText(`Map: ${this.currentMap.name}`, 20, 55);
-        ctx.fillText('1,2,3=Switch Maps | C=Clear | E=Export | D=Toggle', 20, 75);
+        ctx.fillText('1,2,3=Switch Maps | C=Clear | E=Export | M=Toggle', 20, 75);
         
         // Draw existing checkpoints in blue
         ctx.strokeStyle = '#00ff00';
@@ -2345,7 +2345,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!window.game) return;
         
         // Debug mode toggle
-        if (e.code === 'KeyD' && !e.repeat) {
+        if (e.code === 'KeyM' && !e.repeat) {
             e.preventDefault();
             window.game.toggleDebugMode();
             return;

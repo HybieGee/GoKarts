@@ -6,9 +6,34 @@ export default {
     const url = new URL(request.url);
     const upgradeHeader = request.headers.get('Upgrade');
     
-    // CORS headers
+    // Get request origin and validate against allowed origins
+    const origin = request.headers.get('Origin') || '';
+    const allowedOrigins = (env.ALLOWED_ORIGINS || '*').split(',').map(o => o.trim());
+    
+    // Check if origin is allowed (support wildcards)
+    let allowedOrigin = '*';
+    if (allowedOrigins.includes('*')) {
+      allowedOrigin = '*';
+    } else if (allowedOrigins.includes(origin)) {
+      allowedOrigin = origin;
+    } else {
+      // Check for wildcard patterns like https://*.vercel.app
+      const wildcardMatch = allowedOrigins.find(allowed => {
+        if (allowed.includes('*')) {
+          const pattern = allowed.replace(/\*/g, '.*');
+          const regex = new RegExp(`^${pattern}$`);
+          return regex.test(origin);
+        }
+        return false;
+      });
+      if (wildcardMatch) {
+        allowedOrigin = origin;
+      }
+    }
+    
+    // CORS headers - return single origin
     const corsHeaders = {
-      'Access-Control-Allow-Origin': env.ALLOWED_ORIGINS || '*',
+      'Access-Control-Allow-Origin': allowedOrigin,
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     };
@@ -121,14 +146,14 @@ export class MatchmakerDO {
     this.roomSize = parseInt(env.ROOM_SIZE) || 5;
     this.minPlayersToStart = 2;
     this.ttlMs = 20000; // 20 seconds timeout
-    this.matchStartTimeout = null; // Countdown timer
-    this.matchCountdownMs = 15000; // 15 seconds to wait for more players
-    this.countdownStartDelay = 2000; // 2 second delay before starting countdown
-    this.lastMatchResult = null; // Store match result for polling players
-    this.matchedPlayers = new Set(); // Track which players got their match
+    this.waitTimeMs = 5000; // 5 seconds to wait for more players
+    this.lastMatchResult = null;
+    this.matchedPlayers = new Set();
     
-    console.log(`🔧 MatchmakerDO initialized - roomSize: ${this.roomSize}, minPlayers: ${this.minPlayersToStart}`);
+    console.log(`🚀 SIMPLE MATCHMAKER CREATED - roomSize: ${this.roomSize}, waitTime: ${this.waitTimeMs}ms`);
   }
+  
+  // Simple approach: just check timestamps
 
   async fetch(request) {
     const url = new URL(request.url);
@@ -153,20 +178,20 @@ export class MatchmakerDO {
   }
 
   async handleJoin(playerId) {
+    console.log(`🔴 [${playerId}] JOIN REQUEST - Current queue: ${this.queue.length}`);
+    
     // Clean expired entries first
     this.cleanExpiredEntries();
     
     // Check for idempotency - if player is already in queue, just return their status
     const existingPlayer = this.queue.find(p => p.playerId === playerId);
     if (existingPlayer) {
-      console.log(`🔄 [${playerId}] IDEMPOTENT_ENQUEUE - already in queue`);
+      console.log(`🔄 [${playerId}] Already in queue`);
       const position = this.queue.findIndex(p => p.playerId === playerId) + 1;
-      const estWaitSec = Math.max(0, (position - 1) * 10);
-      
       return new Response(JSON.stringify({
         status: "queued",
         position,
-        estWaitSec
+        estWaitSec: 0
       }), {
         headers: { 'Content-Type': 'application/json' }
       });
@@ -179,52 +204,33 @@ export class MatchmakerDO {
     };
 
     this.queue.push(playerEntry);
-    console.log(`🏁 [${playerId}] ENQUEUE - queue size: ${this.queue.length}`);
+    console.log(`🟢 [${playerId}] ADDED TO QUEUE - Total: ${this.queue.length}`);
 
-    // Check if we have enough players to start countdown
-    console.log(`🔍 Queue check: ${this.queue.length} players, minToStart: ${this.minPlayersToStart}, roomSize: ${this.roomSize}, timeout: ${this.matchStartTimeout ? 'ACTIVE' : 'NONE'}`);
+    // SIMPLE LOGIC: Start match when room is full
+    if (this.queue.length >= this.roomSize) {
+      console.log(`🚀 ROOM FULL - Starting match with ${this.queue.length} players`);
+      return await this.startMatch();
+    }
     
+    // For 2+ players: Check if first player has been waiting long enough
     if (this.queue.length >= this.minPlayersToStart) {
-      // If we have max players, start immediately
-      if (this.queue.length >= this.roomSize) {
-        console.log(`🚀 IMMEDIATE START - Room full with ${this.queue.length} players`);
+      const firstPlayerTime = this.queue[0].enqueuedAt;
+      const waitTime = Date.now() - firstPlayerTime;
+      
+      console.log(`⏰ WAIT CHECK - First player waited ${waitTime}ms of ${this.waitTimeMs}ms`);
+      
+      if (waitTime >= this.waitTimeMs) {
+        console.log(`⏰ TIMEOUT REACHED - Starting match with ${this.queue.length} players`);
         return await this.startMatch();
       }
-      
-      // If countdown not already started, start it with a delay
-      if (!this.matchStartTimeout) {
-        console.log(`⏳ Waiting ${this.countdownStartDelay/1000}s before starting countdown (${this.queue.length} players in queue)`);
-        // Add a small delay before starting countdown to allow rapid joins
-        setTimeout(() => {
-          console.log(`⏰ Delay expired! Queue size: ${this.queue.length}, timeout exists: ${this.matchStartTimeout ? 'YES' : 'NO'}`);
-          if (this.queue.length >= this.minPlayersToStart && !this.matchStartTimeout) {
-            console.log(`⏰ Starting ${this.matchCountdownMs/1000}s countdown with ${this.queue.length} players`);
-            this.matchStartTimeout = setTimeout(async () => {
-              console.log(`🎯 Countdown finished! Starting match with ${this.queue.length} players`);
-              if (this.queue.length >= this.minPlayersToStart) {
-                await this.startMatch();
-              }
-              this.matchStartTimeout = null;
-            }, this.matchCountdownMs);
-          } else {
-            console.log(`❌ Countdown not started - insufficient players or timeout already exists`);
-          }
-        }, this.countdownStartDelay);
-      } else {
-        console.log(`⏰ Countdown already running - not starting new one`);
-      }
-    } else {
-      console.log(`⏸️ Not enough players yet: ${this.queue.length}/${this.minPlayersToStart}`);
     }
 
-    // Player is now queued
-    const position = this.queue.findIndex(p => p.playerId === playerId) + 1;
-    const estWaitSec = Math.max(0, (position - 1) * 10); // rough estimate
-    
+    // Still queued
+    const position = this.queue.length;
     return new Response(JSON.stringify({
       status: "queued",
       position,
-      estWaitSec
+      estWaitSec: Math.max(0, Math.ceil((this.waitTimeMs - (Date.now() - this.queue[0].enqueuedAt)) / 1000))
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
@@ -235,14 +241,7 @@ export class MatchmakerDO {
     this.removeFromQueue(playerId);
     
     if (wasInQueue) {
-      console.log(`❌ [${playerId}] DEQUEUE - cancelled by user`);
-      
-      // If we had a countdown but now don't have enough players, cancel it
-      if (this.matchStartTimeout && this.queue.length < this.minPlayersToStart) {
-        console.log(`❌ Cancelling countdown - insufficient players after cancellation`);
-        clearTimeout(this.matchStartTimeout);
-        this.matchStartTimeout = null;
-      }
+      console.log(`❌ [${playerId}] CANCELLED - Queue now: ${this.queue.length}`);
     }
     
     return new Response(JSON.stringify({ status: "cancelled" }), {
@@ -251,11 +250,13 @@ export class MatchmakerDO {
   }
 
   async handlePoll(playerId) {
+    console.log(`🔵 [${playerId}] POLL REQUEST - Queue: ${this.queue.length}`);
+    
     this.cleanExpiredEntries();
     
     // Check if this player was matched in the last match
     if (this.lastMatchResult && this.matchedPlayers.has(playerId)) {
-      console.log(`🎯 [${playerId}] POLL_MATCHED - returning stored match result`);
+      console.log(`🎯 [${playerId}] RETURNING MATCH RESULT`);
       return new Response(JSON.stringify({
         status: this.lastMatchResult.status,
         roomId: this.lastMatchResult.roomId,
@@ -268,6 +269,7 @@ export class MatchmakerDO {
     const playerIndex = this.queue.findIndex(p => p.playerId === playerId);
     
     if (playerIndex === -1) {
+      console.log(`❌ [${playerId}] NOT IN QUEUE - timeout`);
       return new Response(JSON.stringify({ status: "timeout" }), {
         headers: { 'Content-Type': 'application/json' }
       });
@@ -276,50 +278,47 @@ export class MatchmakerDO {
     // Check if player has expired
     const player = this.queue[playerIndex];
     if (Date.now() - player.enqueuedAt > player.ttlMs) {
+      console.log(`⏰ [${playerId}] EXPIRED - removing from queue`);
       this.removeFromQueue(playerId);
       return new Response(JSON.stringify({ status: "timeout" }), {
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // Check if countdown should start or match should begin
-    if (this.queue.length >= this.minPlayersToStart && playerIndex < this.roomSize) {
-      // If we have max players, start immediately
-      if (this.queue.length >= this.roomSize) {
-        const matchResult = await this.startMatch();
-        return matchResult;
-      }
+    // Check if we should start a match
+    if (this.queue.length >= this.roomSize) {
+      console.log(`🚀 POLL TRIGGER - Room full with ${this.queue.length} players`);
+      return await this.startMatch();
+    }
+    
+    // Check timeout for 2+ players
+    if (this.queue.length >= this.minPlayersToStart) {
+      const firstPlayerTime = this.queue[0].enqueuedAt;
+      const waitTime = Date.now() - firstPlayerTime;
       
-      // If countdown not already started, start it with a delay
-      if (!this.matchStartTimeout) {
-        console.log(`⏳ Waiting ${this.countdownStartDelay/1000}s before starting countdown (${this.queue.length} players in queue)`);
-        // Add a small delay before starting countdown to allow rapid joins
-        setTimeout(() => {
-          if (this.queue.length >= this.minPlayersToStart && !this.matchStartTimeout) {
-            console.log(`⏰ Starting ${this.matchCountdownMs/1000}s countdown with ${this.queue.length} players`);
-            this.matchStartTimeout = setTimeout(async () => {
-              if (this.queue.length >= this.minPlayersToStart) {
-                await this.startMatch();
-              }
-              this.matchStartTimeout = null;
-            }, this.matchCountdownMs);
-          }
-        }, this.countdownStartDelay);
+      console.log(`⏰ POLL WAIT CHECK - ${waitTime}ms of ${this.waitTimeMs}ms`);
+      
+      if (waitTime >= this.waitTimeMs) {
+        console.log(`⏰ POLL TIMEOUT - Starting match with ${this.queue.length} players`);
+        return await this.startMatch();
       }
     }
 
     // Still queued
     const position = playerIndex + 1;
-    const estWaitSec = Math.max(0, (position - 1) * 10);
+    const remainingWait = this.queue.length >= this.minPlayersToStart ? 
+      Math.max(0, Math.ceil((this.waitTimeMs - (Date.now() - this.queue[0].enqueuedAt)) / 1000)) : 0;
     
     return new Response(JSON.stringify({
       status: "queued",
       position,
-      estWaitSec
+      estWaitSec: remainingWait
     }), {
       headers: { 'Content-Type': 'application/json' }
     });
   }
+
+  // Simplified: no complex countdown logic
 
   async startMatch() {
     if (this.queue.length < this.minPlayersToStart) {
@@ -330,7 +329,7 @@ export class MatchmakerDO {
     const playersForRoom = this.queue.splice(0, Math.min(this.roomSize, this.queue.length));
     const roomData = await this.createRoom(playersForRoom.length);
     
-    console.log(`🎯 [${roomData.roomId}] MATCH_STARTED - players: ${playersForRoom.map(p => p.playerId).join(', ')}`);
+    console.log(`🎯 MATCH CREATED - Room: ${roomData.roomId}, Players: ${playersForRoom.map(p => p.playerId).join(', ')}`);
     
     // Store match result for all players to access via polling
     this.lastMatchResult = {
@@ -344,12 +343,6 @@ export class MatchmakerDO {
     // Clear matched players set and add new ones
     this.matchedPlayers.clear();
     playersForRoom.forEach(p => this.matchedPlayers.add(p.playerId));
-    
-    // Clear the countdown since we're starting
-    if (this.matchStartTimeout) {
-      clearTimeout(this.matchStartTimeout);
-      this.matchStartTimeout = null;
-    }
     
     // Return response (in case this was called directly from handleJoin)
     return new Response(JSON.stringify({
@@ -367,20 +360,11 @@ export class MatchmakerDO {
     const expiredPlayers = this.queue.filter(p => now - p.enqueuedAt >= p.ttlMs);
     this.queue = this.queue.filter(p => now - p.enqueuedAt < p.ttlMs);
     
-    // Log expired players
-    expiredPlayers.forEach(p => {
-      console.log(`⏰ [${p.playerId}] DEQUEUE - timeout (${Math.round((now - p.enqueuedAt) / 1000)}s)`);
-    });
-    
-    if (before !== this.queue.length) {
-      console.log(`🧹 Queue cleanup: ${before} -> ${this.queue.length} (removed ${before - this.queue.length} expired)`);
-    }
-    
-    // If we had a countdown but now don't have enough players, cancel it
-    if (this.matchStartTimeout && this.queue.length < this.minPlayersToStart) {
-      console.log(`❌ Cancelling countdown - insufficient players after cleanup`);
-      clearTimeout(this.matchStartTimeout);
-      this.matchStartTimeout = null;
+    if (expiredPlayers.length > 0) {
+      expiredPlayers.forEach(p => {
+        console.log(`⏰ [${p.playerId}] EXPIRED after ${Math.round((now - p.enqueuedAt) / 1000)}s`);
+      });
+      console.log(`🧹 CLEANUP: ${before} -> ${this.queue.length} players`);
     }
   }
 
@@ -397,7 +381,7 @@ export class MatchmakerDO {
     const result = await response.json();
     
     // Convert roomWebSocketPath to full wsUrl
-    const baseUrl = 'wss://gokarts-multiplayer.stealthbundlebot.workers.dev';
+    const baseUrl = 'wss://gokarts-multiplayer-prod.stealthbundlebot.workers.dev';
     result.wsUrl = `${baseUrl}${result.roomWebSocketPath}`;
     
     return result;
@@ -519,7 +503,7 @@ export class RoomDO {
   handleRoomMessage(websocket, message) {
     switch (message.t) {
       case 'HELLO':
-        this.handlePlayerJoin(websocket, message.playerId);
+        this.handlePlayerJoin(websocket, message.playerId, message.playerName);
         break;
       case 'PING':
         this.handlePing(websocket);
@@ -535,7 +519,7 @@ export class RoomDO {
     }
   }
 
-  handlePlayerJoin(websocket, playerId) {
+  handlePlayerJoin(websocket, playerId, playerName) {
     if (this.members.size >= this.maxPlayers) {
       this.sendMessage(websocket, { t: "KICK", reason: "Room full" });
       websocket.close();
@@ -544,6 +528,7 @@ export class RoomDO {
 
     const member = {
       playerId,
+      playerName: playerName || playerId, // Store player name
       websocket,
       joinedAt: Date.now(),
       lastHeartbeat: Date.now(),
@@ -599,29 +584,81 @@ export class RoomDO {
     if (member && message.playerId && message.playerName) {
       console.log(`🏆 [${this.roomId}] RACE_WINNER: ${message.playerName} (${message.playerId})`);
       
-      // Report win to leaderboard
-      try {
-        const leaderboardId = this.env.LEADERBOARD.idFromName('global-leaderboard');
-        const leaderboard = this.env.LEADERBOARD.get(leaderboardId);
-        await leaderboard.fetch(new Request('https://dummy-url/record-win', {
-          method: 'POST',
-          body: JSON.stringify({
-            playerId: message.playerId,
-            playerName: message.playerName,
-            raceTime: message.raceTime || 0
-          })
-        }));
-      } catch (error) {
-        console.error('Failed to record win:', error);
+      // Store race results if not already stored
+      if (!this.raceResults) {
+        this.raceResults = [];
       }
       
-      // Broadcast race end to all players
+      // Add winner to results if not already there
+      if (!this.raceResults.find(r => r.playerId === message.playerId)) {
+        this.raceResults.push({
+          playerId: message.playerId,
+          playerName: message.playerName,
+          position: this.raceResults.length + 1,
+          finishTime: Date.now()
+        });
+      }
+      
+      // Report win to leaderboard (only for first place)
+      if (this.raceResults.length === 1) {
+        try {
+          const leaderboardId = this.env.LEADERBOARD.idFromName('global-leaderboard');
+          const leaderboard = this.env.LEADERBOARD.get(leaderboardId);
+          await leaderboard.fetch(new Request('https://dummy-url/record-win', {
+            method: 'POST',
+            body: JSON.stringify({
+              playerId: message.playerId,
+              playerName: message.playerName,
+              raceTime: message.raceTime || 0
+            })
+          }));
+        } catch (error) {
+          console.error('Failed to record win:', error);
+        }
+      }
+      
+      // Get all players still in the race (including those who haven't finished)
+      const allPlayers = [];
+      
+      // Add finished players first
+      this.raceResults.forEach(result => {
+        allPlayers.push({
+          id: result.playerId,
+          playerId: result.playerId,
+          name: result.playerName,
+          playerName: result.playerName,
+          position: result.position,
+          finished: true
+        });
+      });
+      
+      // Add players who haven't finished yet
+      let unfinishedPosition = this.raceResults.length + 1;
+      this.members.forEach((member, playerId) => {
+        if (!this.raceResults.find(r => r.playerId === playerId)) {
+          // Get player name from member data or use playerId as fallback
+          const playerName = member.playerName || playerId;
+          allPlayers.push({
+            id: playerId,
+            playerId: playerId,
+            name: playerName,
+            playerName: playerName,
+            position: unfinishedPosition++,
+            finished: false
+          });
+        }
+      });
+      
+      // Broadcast race end to all players with complete results
       this.broadcast({
         t: "RACE_END",
         winner: {
           playerId: message.playerId,
-          playerName: message.playerName
-        }
+          playerName: message.playerName,
+          name: message.playerName,
+          id: message.playerId  // Add for compatibility
+        },
+        finalPositions: allPlayers
       });
     }
   }
@@ -722,15 +759,6 @@ export class RoomDO {
     }
   }
 
-  broadcast(message) {
-    this.members.forEach((member, id) => {
-      try {
-        member.websocket.send(message);
-      } catch (err) {
-        this.removeMember(id);
-      }
-    });
-  }
 
   generateId() {
     return Math.random().toString(36).substr(2, 9);

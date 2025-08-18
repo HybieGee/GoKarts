@@ -1,5 +1,5 @@
 name = "gokarts-multiplayer"
-main = "cloudflare/worker.ts"
+main = "cloudflare-worker.js"
 compatibility_date = "2023-12-01"
 
 [durable_objects]

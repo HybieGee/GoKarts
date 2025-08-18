@@ -53,6 +53,9 @@ class GoKartsGame {
         this.raceStartTime = 0;
         this.raceFinished = false;
         
+        // Sound system
+        this.sounds = this.initSounds();
+        
         // Frame rate independent movement
         this.lastFrameTime = 0;
         this.targetFPS = 60;
@@ -412,7 +415,13 @@ class GoKartsGame {
                 prevX: canvasWidth * playerData.position.x,
                 prevY: canvasHeight * playerData.position.y,
                 lapStarted: false,
-                lastCrossTime: 0
+                lastCrossTime: 0,
+                // Lap timing
+                bestLapTime: null,
+                currentLapStartTime: null,
+                lapTimes: [],
+                totalRaceTime: 0,
+                raceStartTime: null
             };
             
             this.players.push(player);
@@ -459,16 +468,31 @@ class GoKartsGame {
             if (this.countdownValue === 3) {
                 // First count
                 this.countdownValue = 3;
+                this.playSound('countdownBeep');
                 setTimeout(() => {
                     this.countdownValue = 2;
+                    this.playSound('countdownBeep');
                     setTimeout(() => {
                         this.countdownValue = 1;
+                        this.playSound('countdownBeep');
                         setTimeout(() => {
                             // Show GO!
                             this.countdownValue = 0;
                             this.countdownText = 'GO!';
                             this.gameState = 'racing';
                             this.raceStartTime = Date.now();
+                            this.playSound('raceStartBeep');
+                            
+                            // Initialize race timing for all players
+                            this.players.forEach(player => {
+                                player.raceStartTime = this.raceStartTime;
+                                player.currentLapStartTime = this.raceStartTime;
+                            });
+                            
+                            // Start UI update timer
+                            this.uiUpdateInterval = setInterval(() => {
+                                this.updateRaceUI();
+                            }, 100); // Update every 100ms
                             
                             // Clear GO! after 800ms
                             setTimeout(() => {
@@ -564,33 +588,50 @@ class GoKartsGame {
         const resultTitle = document.getElementById('raceResult');
         const resultsList = document.getElementById('raceResultsList');
         
-        const isWinner = data.winner.id === this.playerId;
+        // Check if current player is the winner (handle both id and playerId)
+        const winnerId = data.winner.playerId || data.winner.id;
+        const winnerName = data.winner.playerName || data.winner.name || 'Unknown';
+        const isWinner = winnerId === this.playerId;
+        
         if (isWinner) {
             resultTitle.textContent = '🏆 You Won!';
             resultTitle.style.color = '#ffd700';
         } else {
             const winnerPrefix = data.winner.isBot ? '🤖 ' : '';
-            resultTitle.textContent = `🏁 ${winnerPrefix}${data.winner.name} Won!`;
+            resultTitle.textContent = `🏁 ${winnerPrefix}${winnerName} Won!`;
             resultTitle.style.color = data.winner.isBot ? '#ff9500' : '#ff6b6b';
         }
         
-        // Display final positions
+        // Display final positions (if available)
         resultsList.innerHTML = '';
-        data.finalPositions.forEach((player, index) => {
+        if (data.finalPositions && data.finalPositions.length > 0) {
+            data.finalPositions.forEach((player, index) => {
+                const entry = document.createElement('div');
+                entry.className = 'result-entry';
+                if (index === 0) entry.classList.add('winner');
+                if (player.id === this.playerId) entry.style.background = 'rgba(76, 236, 196, 0.2)';
+                
+                const playerName = player.isBot ? `🤖 ${player.name}` : player.name;
+                const playerIndicator = player.id === this.playerId ? '(You)' : (player.isBot ? '(Bot)' : '');
+                
+                entry.innerHTML = `
+                    <span>${player.position}. ${playerName}</span>
+                    <span>${playerIndicator}</span>
+                `;
+                resultsList.appendChild(entry);
+            });
+        } else {
+            // If no final positions, just show the winner
             const entry = document.createElement('div');
-            entry.className = 'result-entry';
-            if (index === 0) entry.classList.add('winner');
-            if (player.id === this.playerId) entry.style.background = 'rgba(76, 236, 196, 0.2)';
-            
-            const playerName = player.isBot ? `🤖 ${player.name}` : player.name;
-            const playerIndicator = player.id === this.playerId ? '(You)' : (player.isBot ? '(Bot)' : '');
+            entry.className = 'result-entry winner';
+            if (isWinner) entry.style.background = 'rgba(76, 236, 196, 0.2)';
             
             entry.innerHTML = `
-                <span>${player.position}. ${playerName}</span>
-                <span>${playerIndicator}</span>
+                <span>1. ${winnerName}</span>
+                <span>${isWinner ? '(You)' : ''}</span>
             `;
             resultsList.appendChild(entry);
-        });
+        }
         
         // Request updated leaderboard
         if (this.socket) {
@@ -1031,6 +1072,12 @@ class GoKartsGame {
             prevY: startPosition.y,
             lapStarted: false,
             lastCrossTime: 0,
+            // Lap timing
+            bestLapTime: null,
+            currentLapStartTime: null,
+            lapTimes: [],
+            totalRaceTime: 0,
+            raceStartTime: null
         };
         this.players.push(this.localPlayer);
         
@@ -1060,6 +1107,12 @@ class GoKartsGame {
                 prevY: startPosition.y,
                 lapStarted: false,
                 lastCrossTime: 0,
+                // Lap timing
+                bestLapTime: null,
+                currentLapStartTime: null,
+                lapTimes: [],
+                totalRaceTime: 0,
+                raceStartTime: null
             });
         }
         
@@ -1260,12 +1313,37 @@ class GoKartsGame {
                     player.checkpointsPassed = [];
                 } else if (player.nextCheckpoint === this.checkpointLines.length) {
                     // Completed all checkpoints - valid lap!
+                    const lapTime = now - player.currentLapStartTime;
+                    player.lapTimes.push(lapTime);
+                    
+                    // Update best lap time
+                    if (!player.bestLapTime || lapTime < player.bestLapTime) {
+                        player.bestLapTime = lapTime;
+                    }
+                    
                     player.lapCount++;
                     player.nextCheckpoint = 0;
                     player.checkpointsPassed = [];
                     player.lastCrossTime = now;
+                    player.currentLapStartTime = now; // Start timing next lap
+                    
+                    console.log(`🏁 ${player.name} completed lap ${player.lapCount - 1} in ${(lapTime / 1000).toFixed(2)}s (Best: ${player.bestLapTime ? (player.bestLapTime / 1000).toFixed(2) : 'N/A'}s)`);
+                    
+                    // Update UI and play sound if this is the local player
+                    if (player.isLocal) {
+                        this.updateRaceUI();
+                        this.playSound('lapCompleteBeep');
+                    }
                     
                     if (player.lapCount > this.maxLaps && !this.raceFinished) {
+                        // Calculate total race time
+                        player.totalRaceTime = now - player.raceStartTime;
+                        
+                        // Play finish sound if this is the local player
+                        if (player.isLocal) {
+                            this.playSound('raceFinishBeep');
+                        }
+                        
                         this.finishRace(player);
                     }
                 }
@@ -1285,6 +1363,11 @@ class GoKartsGame {
                     player.checkpointsPassed.push(player.nextCheckpoint);
                     player.nextCheckpoint++;
                     player.lastCrossTime = now;
+                    
+                    // Play checkpoint sound for local player
+                    if (player.isLocal) {
+                        this.playSound('checkpointBeep');
+                    }
                 }
             }
             
@@ -1341,6 +1424,12 @@ class GoKartsGame {
         this.raceFinished = true;
         this.gameState = 'results';
         
+        // Clear UI update timer
+        if (this.uiUpdateInterval) {
+            clearInterval(this.uiUpdateInterval);
+            this.uiUpdateInterval = null;
+        }
+        
         // In multiplayer, notify server. In offline, handle locally
         if (this.isMultiplayer && this.socket) {
             // Send finish event regardless of who won
@@ -1388,9 +1477,20 @@ class GoKartsGame {
             entry.className = 'result-entry';
             if (index === 0) entry.classList.add('winner');
             
+            // Format timing info
+            let timingInfo = `Lap ${Math.min(player.lapCount, this.maxLaps)}`;
+            if (player.totalRaceTime) {
+                const totalSeconds = (player.totalRaceTime / 1000).toFixed(2);
+                timingInfo += ` | ${totalSeconds}s`;
+            }
+            if (player.bestLapTime) {
+                const bestSeconds = (player.bestLapTime / 1000).toFixed(2);
+                timingInfo += ` | Best: ${bestSeconds}s`;
+            }
+            
             entry.innerHTML = `
                 <span>${player.position}. ${player.name}</span>
-                <span>Lap ${Math.min(player.lapCount, this.maxLaps)}</span>
+                <span>${timingInfo}</span>
             `;
             resultsList.appendChild(entry);
         });
@@ -1882,6 +1982,104 @@ class GoKartsGame {
                 }, 1500);
             } else {
                 alert('Please enter a valid name (1-20 characters)');
+            }
+        }
+    }
+
+    initSounds() {
+        let audioContext = null;
+        
+        const initAudioContext = () => {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                // Resume context if suspended (required by browsers)
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+            }
+            return audioContext;
+        };
+        
+        const createBeep = (frequency, duration, type = 'sine') => {
+            const ctx = initAudioContext();
+            const oscillator = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = type;
+            
+            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+            
+            oscillator.start();
+            oscillator.stop(ctx.currentTime + duration);
+        };
+        
+        return {
+            countdownBeep: () => createBeep(800, 0.2),
+            raceStartBeep: () => createBeep(1200, 0.5),
+            checkpointBeep: () => createBeep(600, 0.15),
+            lapCompleteBeep: () => {
+                // Double beep for lap completion
+                createBeep(900, 0.2);
+                setTimeout(() => createBeep(900, 0.2), 150);
+            },
+            raceFinishBeep: () => {
+                // Victory fanfare
+                createBeep(800, 0.3);
+                setTimeout(() => createBeep(1000, 0.3), 200);
+                setTimeout(() => createBeep(1200, 0.5), 400);
+            }
+        };
+    }
+
+    playSound(soundName) {
+        try {
+            if (this.sounds && this.sounds[soundName]) {
+                this.sounds[soundName]();
+            }
+        } catch (error) {
+            console.warn('Could not play sound:', soundName, error);
+        }
+    }
+
+    updateRaceUI() {
+        if (this.gameState !== 'racing' || !this.localPlayer) return;
+        
+        // Update lap counter
+        const lapCounter = document.getElementById('lapCounter');
+        if (lapCounter) {
+            lapCounter.textContent = `Lap: ${this.localPlayer.lapCount}/${this.maxLaps}`;
+        }
+        
+        // Update position
+        const position = document.getElementById('position');
+        if (position) {
+            position.textContent = `Position: ${this.localPlayer.position}/${this.players.length}`;
+        }
+        
+        // Update race timer
+        const raceTimer = document.getElementById('raceTimer');
+        if (raceTimer && this.raceStartTime) {
+            const elapsed = (Date.now() - this.raceStartTime) / 1000;
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = (elapsed % 60).toFixed(1);
+            raceTimer.textContent = `${minutes}:${seconds.padStart(4, '0')}`;
+        }
+        
+        // Update best lap time
+        const bestLapTime = document.getElementById('bestLapTime');
+        if (bestLapTime) {
+            if (this.localPlayer.bestLapTime) {
+                const bestSeconds = (this.localPlayer.bestLapTime / 1000).toFixed(2);
+                const minutes = Math.floor(bestSeconds / 60);
+                const seconds = (bestSeconds % 60).toFixed(2);
+                bestLapTime.textContent = `Best: ${minutes}:${seconds.padStart(5, '0')}`;
+            } else {
+                bestLapTime.textContent = 'Best: --:--.--';
             }
         }
     }

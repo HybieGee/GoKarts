@@ -135,7 +135,9 @@ class CloudflareGameClient {
                 
                 // Send HELLO message with player name
                 const playerName = localStorage.getItem('gokarts_player_name') || this._playerId;
-                this.sendRoomMessage({ t: "HELLO", playerId: this._playerId, playerName: playerName });
+                const helloMsg = { t: "HELLO", playerId: this._playerId, playerName: playerName };
+                console.log('📤 Sending HELLO message:', helloMsg);
+                this.sendRoomMessage(helloMsg);
                 
                 // Start heartbeat
                 this.startHeartbeat();
@@ -224,9 +226,11 @@ class CloudflareGameClient {
     // Send message to room WebSocket
     sendRoomMessage(message) {
         if (this.roomWs && this.roomWs.readyState === WebSocket.OPEN) {
-            this.roomWs.send(JSON.stringify(message));
+            const msgStr = JSON.stringify(message);
+            console.log('📤 Sending to room:', msgStr);
+            this.roomWs.send(msgStr);
         } else {
-            console.warn('Cannot send room message: not connected');
+            console.warn('Cannot send room message: not connected, readyState:', this.roomWs?.readyState);
         }
     }
 

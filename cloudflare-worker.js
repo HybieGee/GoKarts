@@ -655,18 +655,91 @@ export class RoomDO {
         }
       });
       
-      // Broadcast race end to all players with complete results
-      this.broadcast({
-        t: "RACE_END",
-        winner: {
-          playerId: message.playerId,
-          playerName: message.playerName,
-          name: message.playerName,
-          id: message.playerId  // Add for compatibility
-        },
-        finalPositions: allPlayers
-      });
+      // Only broadcast race end if this is the first player to finish (winner)
+      // or if enough time has passed for other players to send their data
+      if (this.raceResults.length === 1 || !this.raceEndBroadcast) {
+        // Set a flag and delay to allow other players to send their data
+        if (this.raceResults.length === 1) {
+          this.raceEndBroadcast = setTimeout(() => {
+            this.broadcastRaceEnd();
+          }, 2000); // Wait 2 seconds for other finishers
+        }
+      }
+      
+      // If we now have more finishers, update the results but don't re-broadcast yet
+      if (this.raceResults.length > 1 && this.raceEndBroadcast) {
+        // The timeout will handle the final broadcast
+        return;
+      }
+      
+      // Immediate broadcast for the first finisher only
+      if (this.raceResults.length === 1) {
+        this.broadcast({
+          t: "RACE_END",
+          winner: {
+            playerId: message.playerId,
+            playerName: message.playerName,
+            name: message.playerName,
+            id: message.playerId  // Add for compatibility
+          },
+          finalPositions: allPlayers
+        });
+      }
     }
+  }
+
+  broadcastRaceEnd() {
+    if (!this.raceResults || this.raceResults.length === 0) return;
+    
+    const winner = this.raceResults[0]; // First to finish is the winner
+    
+    // Rebuild all players list with latest data
+    const allPlayers = [];
+    
+    // Add finished players first
+    this.raceResults.forEach(result => {
+      allPlayers.push({
+        id: result.playerId,
+        playerId: result.playerId,
+        name: result.playerName,
+        playerName: result.playerName,
+        position: result.position,
+        finished: true,
+        bestLapTime: result.bestLapTime,
+        totalRaceTime: result.totalRaceTime,
+        lapCount: result.lapCount
+      });
+    });
+    
+    // Add players who haven't finished yet
+    let unfinishedPosition = this.raceResults.length + 1;
+    this.members.forEach((member, playerId) => {
+      if (!this.raceResults.find(r => r.playerId === playerId)) {
+        const playerName = member.playerName || playerId;
+        allPlayers.push({
+          id: playerId,
+          playerId: playerId,
+          name: playerName,
+          playerName: playerName,
+          position: unfinishedPosition++,
+          finished: false
+        });
+      }
+    });
+    
+    this.broadcast({
+      t: "RACE_END",
+      winner: {
+        playerId: winner.playerId,
+        playerName: winner.playerName,
+        name: winner.playerName,
+        id: winner.playerId
+      },
+      finalPositions: allPlayers
+    });
+    
+    // Clear the timeout flag
+    this.raceEndBroadcast = null;
   }
 
   startCountdown() {

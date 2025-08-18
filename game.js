@@ -1372,6 +1372,20 @@ class GoKartsGame {
                         // Calculate total race time
                         player.totalRaceTime = now - player.raceStartTime;
                         
+                        // Send individual player finish data in multiplayer mode
+                        if (this.isMultiplayer && this.socket) {
+                            this.socket.sendRoomMessage({
+                                t: "RACE_FINISH",
+                                playerId: player.id,
+                                playerName: player.isLocal ? this.playerName : player.name,
+                                raceTime: player.totalRaceTime,
+                                finalTime: player.totalRaceTime,
+                                lapCount: player.lapCount,
+                                bestLapTime: player.bestLapTime,
+                                totalRaceTime: player.totalRaceTime
+                            });
+                        }
+                        
                         // Play finish sound if this is the local player
                         if (player.isLocal) {
                             this.playSound('raceFinishBeep');
@@ -1463,20 +1477,8 @@ class GoKartsGame {
             this.uiUpdateInterval = null;
         }
         
-        // In multiplayer, notify server. In offline, handle locally
-        if (this.isMultiplayer && this.socket) {
-            // Send finish event regardless of who won
-            this.socket.sendRoomMessage({
-                t: "RACE_FINISH",
-                playerId: winner.id,
-                playerName: winner.isLocal ? this.playerName : winner.name,
-                raceTime: Date.now() - this.raceStartTime,
-                finalTime: Date.now() - this.raceStartTime,
-                lapCount: winner.lapCount,
-                bestLapTime: winner.bestLapTime,
-                totalRaceTime: winner.totalRaceTime
-            });
-        } else if (!this.isMultiplayer) {
+        // In offline mode, update local leaderboard
+        if (!this.isMultiplayer) {
             // Update local leaderboard
             if (winner.isLocal) {
                 this.updateLeaderboard(this.playerName || 'You');

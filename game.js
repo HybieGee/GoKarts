@@ -60,8 +60,8 @@ class GoKartsGame {
                     { p1: { x: 0.788, y: 0.450 }, p2: { x: 0.899, y: 0.455 } },
                     { p1: { x: 0.712, y: 0.555 }, p2: { x: 0.759, y: 0.678 } }
                 ],
-                startFinishLine: { p1: { x: 0.4, y: 0.5 }, p2: { x: 0.6, y: 0.5 } },
-                startPosition: { x: 0.5, y: 0.6 }
+                startFinishLine: { p1: { x: 0.520, y: 0.694 }, p2: { x: 0.578, y: 0.810 } },
+                startPosition: { x: 0.55, y: 0.85 }
             },
             map3: {
                 image: 'Map3.png',
@@ -79,7 +79,7 @@ class GoKartsGame {
                     { p1: { x: 0.732, y: 0.541 }, p2: { x: 0.806, y: 0.560 } },
                     { p1: { x: 0.676, y: 0.646 }, p2: { x: 0.701, y: 0.753 } }
                 ],
-                startFinishLine: { p1: { x: 0.558, y: 0.829 }, p2: { x: 0.513, y: 0.735 } },
+                startFinishLine: { p1: { x: 0.381, y: 0.880 }, p2: { x: 0.384, y: 0.769 } },
                 startPosition: { x: 0.535, y: 0.782 }
             }
         };
@@ -89,6 +89,7 @@ class GoKartsGame {
         this.currentMapIndex = 0;
         this.currentMapId = this.mapOrder[this.currentMapIndex];
         this.currentMap = this.maps[this.currentMapId];
+        this.raceMapId = this.currentMapId; // Track which map the current race is using
         this.mapRotationTimer = null;
         this.mapRotationInterval = 60000; // 1 minute for testing (30 * 60 * 1000 for production)
         
@@ -169,10 +170,12 @@ class GoKartsGame {
     }
 
     buildPlayersFromRoom(roomData) {
-        // Calculate correct starting angle (same as single player)
-        const startPosition = { x: 0.8, y: 0.5 };
-        const cp1CenterX = 0.655;
-        const cp1CenterY = 0.835;
+        // Use current map's start position
+        const startPosition = this.currentMap.startPosition;
+        // Use first checkpoint for angle calculation
+        const firstCheckpoint = this.currentMap.checkpoints[0];
+        const cp1CenterX = (firstCheckpoint.p1.x + firstCheckpoint.p2.x) / 2;
+        const cp1CenterY = (firstCheckpoint.p1.y + firstCheckpoint.p2.y) / 2;
         const dx = cp1CenterX - startPosition.x;
         const dy = cp1CenterY - startPosition.y;
         const standardAngle = Math.atan2(dy, dx);
@@ -533,6 +536,10 @@ class GoKartsGame {
     }
     
     startCountdown() {
+        // Lock in the race map when countdown starts
+        this.raceMapId = this.currentMapId;
+        console.log(`🏁 Race starting on ${this.maps[this.raceMapId].name}`);
+        
         // Initialize countdown display
         this.countdownValue = 3;
         this.countdownText = null;
@@ -653,6 +660,8 @@ class GoKartsGame {
         
         setTimeout(() => {
             this.showMultiplayerResults(data);
+            // Check if map needs to switch after race ends
+            this.checkAndSwitchMap();
         }, 1000);
     }
     
@@ -1038,6 +1047,16 @@ class GoKartsGame {
         }
         this.showScreen('mainMenu');
         this.gameState = 'menu';
+        this.checkAndSwitchMap();
+    }
+    
+    checkAndSwitchMap() {
+        // Switch to the queued map if it's different from the race map
+        if (this.currentMapId !== this.raceMapId) {
+            console.log(`🔄 Switching display to queued map: ${this.maps[this.currentMapId].name}`);
+            this.raceMapId = this.currentMapId;
+            this.switchMap(this.currentMapId);
+        }
     }
     
     updateQueueScreen(queueData) {
@@ -1128,18 +1147,21 @@ class GoKartsGame {
         // Create 5 players (including local player)
         this.players = [];
         
-        // All players start at the same position behind the start line (with fallback canvas dimensions)
+        // All players start at the current map's start position
         const canvasWidth = this.canvas.width || 1200;
         const canvasHeight = this.canvas.height || 800;
-        const startPosition = { x: canvasWidth * 0.80, y: canvasHeight * 0.50 };
+        const startPosition = { 
+            x: canvasWidth * this.currentMap.startPosition.x, 
+            y: canvasHeight * this.currentMap.startPosition.y 
+        };
         
-        // Calculate starting angle to face forward on the track
+        // Calculate starting angle to face forward on the track using first checkpoint
         // Game angle system: 0=north, π/2=east, π=south, 3π/2=west
-        // From start (0.80, 0.50) we need to face toward first checkpoint
-        const cp1CenterX = canvasWidth * 0.655;
-        const cp1CenterY = canvasHeight * 0.835;
-        const dx = cp1CenterX - startPosition.x;  // will be negative (going left)
-        const dy = cp1CenterY - startPosition.y;  // will be positive (going down)
+        const firstCheckpoint = this.currentMap.checkpoints[0];
+        const cp1CenterX = canvasWidth * (firstCheckpoint.p1.x + firstCheckpoint.p2.x) / 2;
+        const cp1CenterY = canvasHeight * (firstCheckpoint.p1.y + firstCheckpoint.p2.y) / 2;
+        const dx = cp1CenterX - startPosition.x;
+        const dy = cp1CenterY - startPosition.y;
         
         // Standard atan2 gives angle where 0=east, π/2=south, π=west, 3π/2=north
         // Game needs angle where 0=north, π/2=east, π=south, 3π/2=west
@@ -2231,17 +2253,25 @@ class GoKartsGame {
     }
 
     rotateToNextMap() {
-        // Move to next map in rotation
+        // Move to next map in rotation (this happens in background)
         this.currentMapIndex = (this.currentMapIndex + 1) % this.mapOrder.length;
         const newMapId = this.mapOrder[this.currentMapIndex];
         
-        console.log(`🔄 AUTOMATIC MAP ROTATION: Switching from ${this.currentMap.name} to ${this.maps[newMapId].name}`);
+        console.log(`🔄 AUTOMATIC MAP ROTATION: Next map queued - ${this.maps[newMapId].name}`);
+        console.log(`🎮 Game state: ${this.gameState}`);
         
-        // Switch to the new map
-        this.switchMap(newMapId);
+        // Update the current map for new races
+        this.currentMapId = newMapId;
+        this.currentMap = this.maps[newMapId];
         
-        // Update the map index to match
-        this.currentMapIndex = this.mapOrder.indexOf(newMapId);
+        // If no race is active, switch immediately
+        if (this.gameState !== 'racing' && this.gameState !== 'countdown') {
+            console.log(`🔄 No active race - switching map display immediately`);
+            this.raceMapId = newMapId;
+            this.switchMap(newMapId);
+        } else {
+            console.log(`🏁 Race ongoing on ${this.maps[this.raceMapId].name}, new races will use ${this.maps[newMapId].name}`);
+        }
     }
 
     stopMapRotation() {

@@ -18,6 +18,7 @@ new_classes = ["MatchmakerDO", "RoomRegistryDO", "RoomDO"]
 tag = "v2"
 new_classes = ["LeaderboardDO"]
 
+
 [vars]
 ROOM_SIZE = "5"
 ALLOWED_ORIGINS = "https://go-karts.vercel.app,https://*.vercel.app,https://grokkarts.online,https://gokarts.online"

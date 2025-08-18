@@ -2,7 +2,7 @@
 const GAME_CONFIG = {
     // Contract Information
     CONTRACT_ADDRESS: "TBD_PUMP_FUN_ADDRESS", // Will be updated after Pump.fun launch
-    CONTRACT_NAME: "Grok Karts Token",
+    CONTRACT_NAME: "Grok Karts",
     CONTRACT_SYMBOL: "GROKKART",
     
     // Blockchain Network

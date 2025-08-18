@@ -1208,7 +1208,7 @@ class GoKartsGame {
                 this.deltaTimeMultiplier = (deltaTime / (1000 / this.targetFPS));
                 this.lastFrameTime = currentTime;
                 
-                console.log('⏱️ FRAME RATE - deltaTime:', deltaTime.toFixed(2), 'multiplier:', this.deltaTimeMultiplier.toFixed(3));
+                // Frame rate debug removed to reduce console spam
                 
                 this.update();  // Only update game physics when racing
             }
@@ -1279,7 +1279,7 @@ class GoKartsGame {
             
             // Speed limits - RESTORED AT GOOD RACING SPEED
             player.speed = Math.max(-player.maxSpeed * 0.6, Math.min(player.maxSpeed, player.speed));
-            console.log('🏁 SPEED LIMITED - speed:', player.speed.toFixed(2), 'maxSpeed:', player.maxSpeed);
+            // Speed limiting debug removed to reduce console spam
             
             // Apply friction when not accelerating (frame rate independent)
             if (!accelerating && !braking) {
@@ -1301,9 +1301,7 @@ class GoKartsGame {
         const newY = player.y + player.velocity.y;
         
         // Debug movement calculation
-        if (Math.random() < 0.01) {
-            console.log('🚀 MOVEMENT - speed:', player.speed.toFixed(2), 'deltaMultiplier:', this.deltaTimeMultiplier.toFixed(3), 'velocity:', player.velocity.x.toFixed(2), player.velocity.y.toFixed(2));
-        }
+        // Movement debug removed to reduce console spam
         
         // Check if new position is on track
         if (this.isOnTrack(newX, newY)) {
@@ -1635,6 +1633,11 @@ class GoKartsGame {
         this.players.forEach(player => {
             this.drawPlayer(player);
         });
+        
+        // Draw debug overlay if enabled
+        if (this.debugMode) {
+            this.drawDebugOverlay();
+        }
         
         // Draw countdown if in countdown state
         if (this.gameState === 'countdown' || this.countdownText) {
@@ -2192,11 +2195,8 @@ class GoKartsGame {
         // Reload track image
         this.trackImage.src = this.currentMap.image;
         
-        // Clear any race in progress
-        if (this.gameState !== 'menu') {
-            this.showScreen('mainMenu');
-            this.gameState = 'menu';
-        }
+        // Clear new checkpoints when switching maps
+        this.clearNewCheckpoints();
     }
 
     handleDebugClick(e) {

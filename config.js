@@ -1,9 +1,9 @@
-// Grok Karts Online Configuration
+// Meme Karts Online Configuration
 const GAME_CONFIG = {
     // Contract Information
     CONTRACT_ADDRESS: "TBD_PUMP_FUN_ADDRESS", // Will be updated after Pump.fun launch
-    CONTRACT_NAME: "Grok Karts Token",
-    CONTRACT_SYMBOL: "GROKKART",
+    CONTRACT_NAME: "Meme Karts Token",
+    CONTRACT_SYMBOL: "MEMEKART",
     
     // Blockchain Network
     NETWORK: {
@@ -28,14 +28,14 @@ const GAME_CONFIG = {
     
     // UI/Branding
     BRANDING: {
-        gameTitle: "🏎️ Grok Karts Online",
+        gameTitle: "🏎️ Meme Karts Online",
         tagline: "Race to the Moon with Crypto Speed!",
         description: "The ultimate crypto racing game where speed meets DeFi. Race, win, and earn tokens!",
         
         // Social Links
         socials: {
-            twitter: "https://twitter.com/grokkartsonline",
-            website: "https://grokkarts.online"
+            twitter: "https://twitter.com/memekartsonline",
+            website: "https://memekarts.online"
         }
     },
     

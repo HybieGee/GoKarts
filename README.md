@@ -1,4 +1,4 @@
-# 🏎️ Grok Karts Online - Multiplayer Crypto Racing Game
+# 🏎️ Meme Karts Online - Multiplayer Crypto Racing Game
 
 A real-time multiplayer racing game built for the crypto community, launching on Solana with Pump.fun integration.
 
@@ -109,7 +109,7 @@ QUEUE_TTL_MS=20000            # 20s queue timeout
 ROOM_HEARTBEAT_MS=30000       # 30s room heartbeat timeout
 
 # CORS Origins (comma-separated)
-ALLOWED_ORIGINS=https://go-karts.vercel.app,https://*.vercel.app,https://grokkarts.online
+ALLOWED_ORIGINS=https://go-karts.vercel.app,https://*.vercel.app,https://memekarts.online
 
 # Environment
 ENVIRONMENT=development        # Use 'production' to disable debug endpoints

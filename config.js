@@ -1,7 +1,7 @@
 // Meme Karts Online Configuration
 const GAME_CONFIG = {
     // Contract Information
-    CONTRACT_ADDRESS: "EFQ2vF3b7QHmg3CstUHYCZ83MDGT7JLxeXJvyDeNpump", // Will be updated after Pump.fun launch
+    CONTRACT_ADDRESS: "Coming Soon", // Update this when token launches
     CONTRACT_NAME: "Meme Karts Token",
     CONTRACT_SYMBOL: "MEMEKART",
     
@@ -14,8 +14,8 @@ const GAME_CONFIG = {
     
     // Buy Button Configuration
     BUY_BUTTON: {
-        enabled: true,
-        url: "https://pump.fun/coin/EFQ2vF3b7QHmg3CstUHYCZ83MDGT7JLxeXJvyDeNpump", // Will be updated after launch
+        enabled: false, // Set to true when token launches
+        url: "https://pump.fun", // Update with full URL when token launches
         text: "🚀 Buy on Pump.fun"
     },
     

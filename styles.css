@@ -82,6 +82,27 @@ body {
     margin-bottom: 2rem;
 }
 
+.game-logo {
+    max-width: 600px;
+    width: 100%;
+    height: auto;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 0 20px rgba(255, 107, 107, 0.5))
+            drop-shadow(0 0 40px rgba(78, 205, 196, 0.3));
+    animation: logoGlow 3s ease-in-out infinite;
+}
+
+@keyframes logoGlow {
+    0%, 100% {
+        filter: drop-shadow(0 0 20px rgba(255, 107, 107, 0.5))
+                drop-shadow(0 0 40px rgba(78, 205, 196, 0.3));
+    }
+    50% {
+        filter: drop-shadow(0 0 30px rgba(255, 107, 107, 0.7))
+                drop-shadow(0 0 60px rgba(78, 205, 196, 0.5));
+    }
+}
+
 .game-title {
     font-family: 'Orbitron', monospace;
     font-size: 4.5rem;

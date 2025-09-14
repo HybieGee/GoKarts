@@ -24,6 +24,7 @@ const GAME_CONFIG = {
         maxLaps: 3,
         maxPlayers: 5,
         raceTimeout: 300000, // 5 minutes
+        workerUrl: "https://gokarts-multiplayer-prod.stealthbundlebot.workers.dev"
     },
     
     // UI/Branding

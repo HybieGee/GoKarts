@@ -2,7 +2,7 @@
 const GAME_CONFIG = {
     // Contract Information
     CONTRACT_ADDRESS: "Coming Soon", // Update this when token launches
-    CONTRACT_NAME: "Meme Karts Token",
+    CONTRACT_NAME: "MemeKarts Online",
     CONTRACT_SYMBOL: "MEMEKART",
     
     // Blockchain Network

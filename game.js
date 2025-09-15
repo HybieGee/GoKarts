@@ -376,26 +376,48 @@ class GoKartsGame {
     showPlayerNameModal() {
         const modal = document.getElementById('playerNameModal');
         const input = document.getElementById('playerNameInput');
+        const walletInput = document.getElementById('walletAddressInput');
         const confirmBtn = document.getElementById('confirmNameBtn');
         const randomBtn = document.getElementById('randomNameBtn');
-        
+
         // Show modal
         modal.classList.add('active');
         input.focus();
-        
+
+        // Load saved wallet address if exists
+        const savedWallet = localStorage.getItem('gokarts_wallet_address');
+        if (savedWallet) {
+            walletInput.value = savedWallet;
+        }
+
         // Handle confirm button
         const confirmHandler = () => {
             const name = input.value.trim();
-            if (name && name.length >= 2) {
-                this.playerName = name;
-                localStorage.setItem('gokarts_player_name', name);
-                modal.classList.remove('active');
-                this.continueWithName();
-                cleanup();
-            } else {
+            const walletAddress = walletInput.value.trim();
+
+            // Validate name
+            if (!name || name.length < 2) {
                 input.style.borderColor = '#ff4444';
                 setTimeout(() => input.style.borderColor = '', 1000);
+                return;
             }
+
+            // Basic Solana address validation (44 chars, starts with valid char)
+            if (walletAddress && walletAddress.length !== 44) {
+                walletInput.style.borderColor = '#ff4444';
+                setTimeout(() => walletInput.style.borderColor = '', 1000);
+                return;
+            }
+
+            this.playerName = name;
+            this.walletAddress = walletAddress || null;
+            localStorage.setItem('gokarts_player_name', name);
+            if (walletAddress) {
+                localStorage.setItem('gokarts_wallet_address', walletAddress);
+            }
+            modal.classList.remove('active');
+            this.continueWithName();
+            cleanup();
         };
         
         // Handle random name button
@@ -958,6 +980,21 @@ class GoKartsGame {
         const saveDisplayNameBtn = document.getElementById('saveDisplayNameBtn');
         if (saveDisplayNameBtn) {
             saveDisplayNameBtn.addEventListener('click', () => this.saveDisplayName());
+        }
+
+        // Save wallet address handler
+        const saveWalletBtn = document.getElementById('saveWalletBtn');
+        if (saveWalletBtn) {
+            saveWalletBtn.addEventListener('click', () => this.saveWalletAddress());
+        }
+
+        // Load wallet address to settings modal
+        const settingsWalletInput = document.getElementById('settingsWalletInput');
+        if (settingsWalletInput) {
+            const savedWallet = localStorage.getItem('gokarts_wallet_address');
+            if (savedWallet) {
+                settingsWalletInput.value = savedWallet;
+            }
         }
         
         // Close modal when clicking outside
@@ -2116,6 +2153,47 @@ class GoKartsGame {
             } else {
                 alert('Please enter a valid name (1-20 characters)');
             }
+        }
+    }
+
+    saveWalletAddress() {
+        const input = document.getElementById('settingsWalletInput');
+        if (input) {
+            const walletAddress = input.value.trim();
+
+            // Basic Solana address validation
+            if (walletAddress) {
+                if (walletAddress.length !== 44) {
+                    alert('Please enter a valid Solana wallet address (44 characters)');
+                    return;
+                }
+
+                // Check if starts with valid Solana address character
+                const firstChar = walletAddress.charAt(0);
+                if (!/[1-9A-HJ-NP-Za-km-z]/.test(firstChar)) {
+                    alert('Please enter a valid Solana wallet address');
+                    return;
+                }
+            }
+
+            // Save wallet address (or clear if empty)
+            if (walletAddress) {
+                localStorage.setItem('gokarts_wallet_address', walletAddress);
+                this.walletAddress = walletAddress;
+                console.log(`Wallet address saved: ${walletAddress}`);
+            } else {
+                localStorage.removeItem('gokarts_wallet_address');
+                this.walletAddress = null;
+                console.log('Wallet address cleared');
+            }
+
+            // Show confirmation
+            const originalText = document.getElementById('saveWalletBtn').textContent;
+            document.getElementById('saveWalletBtn').textContent = 'Saved!';
+            setTimeout(() => {
+                const btn = document.getElementById('saveWalletBtn');
+                if (btn) btn.textContent = originalText;
+            }, 1500);
         }
     }
 

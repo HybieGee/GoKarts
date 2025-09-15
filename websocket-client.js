@@ -133,9 +133,15 @@ class CloudflareGameClient {
                 console.log('✅ Connected to race room!');
                 this.currentState = 'in-room';
                 
-                // Send HELLO message with player name
+                // Send HELLO message with player name and wallet address
                 const playerName = localStorage.getItem('gokarts_player_name') || this._playerId;
-                const helloMsg = { t: "HELLO", playerId: this._playerId, playerName: playerName };
+                const walletAddress = localStorage.getItem('gokarts_wallet_address') || null;
+                const helloMsg = {
+                    t: "HELLO",
+                    playerId: this._playerId,
+                    playerName: playerName,
+                    walletAddress: walletAddress
+                };
                 // HELLO message debug removed to reduce spam
                 this.sendRoomMessage(helloMsg);
                 

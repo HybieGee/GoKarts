@@ -239,6 +239,13 @@
                             <button id="saveDisplayNameBtn" class="menu-btn secondary">Save Name</button>
                         </div>
                         <p class="setting-note">Your display name will appear in race results and leaderboards.</p>
+
+                        <div class="setting-field" style="margin-top: 2rem;">
+                            <label for="settingsWalletInput">Solana Wallet Address:</label>
+                            <input type="text" id="settingsWalletInput" class="wallet-input" placeholder="Enter your Solana address..." maxlength="44">
+                            <button id="saveWalletBtn" class="menu-btn secondary">Save Wallet</button>
+                        </div>
+                        <p class="setting-note">💰 Your wallet address for receiving race winnings.</p>
                     </div>
                 </div>
             </div>
@@ -248,12 +255,23 @@
         <div id="playerNameModal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>🏎️ Enter Your Racing Name</h2>
+                    <h2>🏎️ Enter Your Racing Details</h2>
                 </div>
                 <div class="modal-body">
                     <div class="name-input-section">
-                        <p>Choose your racer name to compete against other players!</p>
-                        <input type="text" id="playerNameInput" class="name-input" placeholder="Enter your name..." maxlength="20">
+                        <p>Set up your racer profile to compete and earn rewards!</p>
+
+                        <div class="input-group">
+                            <label for="playerNameInput">Racing Name:</label>
+                            <input type="text" id="playerNameInput" class="name-input" placeholder="Enter your racing name..." maxlength="20">
+                        </div>
+
+                        <div class="input-group">
+                            <label for="walletAddressInput">Solana Wallet Address:</label>
+                            <input type="text" id="walletAddressInput" class="wallet-input" placeholder="Enter your Solana address for rewards..." maxlength="44">
+                            <p class="input-note">💰 Used for receiving race winnings (no wallet connection required)</p>
+                        </div>
+
                         <div class="name-buttons">
                             <button id="confirmNameBtn" class="menu-btn primary">START RACING</button>
                             <button id="randomNameBtn" class="menu-btn secondary">RANDOM NAME</button>
